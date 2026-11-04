@@ -81,6 +81,31 @@ Codex: include share-to-app on a real Android phone (Chrome → install PWA → 
   - **Needs a manual test:** order → short supply → invoice → receipt with matching balances on both sides; order/invoice downloads on phone and desktop with one account; distributor file mapping and re-uploads; combined purchase + sale + shelf counts with save, refresh and reopen; private vault on a second device; video playback per role on Android.
   - **Code ready, release test needed:** product and date-range reports; medicine-search and video shortcuts on role and demo pages.
 
+### 1e. Signed-in end-to-end test on the live app (4 Nov, ~06:50–07:05 UTC, owner-approved)
+The test used the app's own "No code → Another shop (own test space)" path. It created two isolated TEST accounts: **Pilot Chemist 290D5B (TEST)** and **Pilot Distributor C5B872 (TEST)**. Only synthetic data was entered (all names start with "TEST"). The real shops 33 and Mega were not touched.
+
+| # | Step | Result |
+|---|---|---|
+| 1 | All 16 signed-in pages, as chemist and as distributor | **PASS.** All load with 0 console errors. The distributor correctly sees "not a member of a chemist shop" on the chemist-only pages. |
+| 2 | Distributor makes an invite code (`XXXX-XXXX`, 14-day validity); chemist enters it | **PASS.** Both sides show "Linked". |
+| 3 | Chemist sends an order (Paracetamol ×10, Cetirizine ×5, with a note) | **PASS.** The distributor sees "Distributor action required". |
+| 4 | Distributor supplies 6 of 10 | **PASS.** Status "Short supply"; the chemist sees "10 → 6". |
+| 5 | Price and bill: rates ₹20/₹30, 12% GST, batches, expiries, bill TEST-001, PDF attached | **PASS.** Subtotal ₹280.00, GST ₹33.60, total ₹313.60, all correct. |
+| 6 | Chemist downloads the invoice | **PASS.** Same 626-byte PDF that was uploaded. |
+| 7 | Chemist marks received | **PASS.** Stock rows created: Cetirizine 5 (TESTB1, exp 2027-12-31) and Paracetamol 6 (TESTB2, exp 2028-06-30). Confirmed in the DB. |
+| 8 | Distributor records a ₹100 UPI payment | **PASS.** Both ledgers show billed ₹313.60, paid ₹100, due ₹213.60. |
+| 9 | Chemist records a sale of 3 Paracetamol | **PASS.** "Saved. New quantity: 3"; history survives a reload; DB quantity is 3. |
+| 10 | Product photo capture, phone reader, with a clear synthetic label | **PASS.** Name "TESTOCIN 500 500 mg" (slight repeat), pack, batch TST24A01, expiry 2027-12-31 and MRP 45.5 all filled. |
+| 11 | Cloud (Gemma) reading with consent ticked | **FAIL.** `POST /api/gemma-read` returned **502**, shown as "Gemma is not reachable now". |
+
+**Gemma 502 diagnosis:** 502 means `provider_error`, `bad_response` or `truncated`. It is **not** `not_configured` (503), so a key **is** present. Google answers an invalid or revoked key with **HTTP 400 `API_KEY_INVALID`** (reproduced with a dummy key), and `callGemma` maps every 400 to `provider_error`, i.e. 502. Most likely cause: **the saved `GEMINI_API_KEY` is not a valid key for the Gemini API**. Other possible causes are Google rejecting the request settings for `gemma-4-31b-it` (`thinkingConfig`) or an unparseable answer; Lovable server logs will show which.
+- **Owner:** in Google AI Studio → API keys, check the key is active, then re-enter it in Lovable → Project Settings → Secrets as `GEMINI_API_KEY`.
+- **Code fix (Lovable/Codex):** in `gemma.server.ts`, treat a 400 whose body says `API_KEY_INVALID` as `not_configured`, and log the provider error body, so the screen says "key invalid" rather than "not reachable".
+
+**Owner's Fenalin SP photo:** the phone reader works on a sharp, close-up label (row 10), so that failure was photo quality: small, tilted, far away.
+
+**Test data left in production:** the two TEST businesses and accounts above, 1 order, bill TEST-001, a ₹100 payment, 2 stock rows, 3 stock movements and 2 capture drafts. Every name contains "TEST"/"synthetic". Delete it, or keep it as a demo pair, on the owner's instruction.
+
 ## 2. Application repair report (`Medical-Store-Final-Complete`)
 
 Defects reproduced before fixing:
