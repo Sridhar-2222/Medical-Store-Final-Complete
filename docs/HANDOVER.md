@@ -15,7 +15,7 @@ Status key: **DONE** = done and verified with evidence below. **READY** = built 
 |---|---|---|
 | GitHub | 5 repos in scope. Only `Medical-Store-Final-Complete` has code. `rx-fingertrip-project-docs` has one CSV (7,500 company contacts). `rx-fingertrip-project-doc`, `rxfingertrip-product-data-` and `rxfingertrip-product-data-base` are **empty** (no commits). | `git log` in each clone |
 | Domain `aipharmacy.in` | Registered at **GoDaddy** (NS `ns73/ns74.domaincontrol.com`). A records `15.197.148.33` and `3.33.130.190` belong to **GoDaddy's parking/forwarder**, not a VPS. The site returns a JS redirect to `/lander` (a parked page). `www` is a CNAME to the apex. **No MX, TXT, AAAA**, and no `n8n`, `api` or `app` subdomains. | `dns.google` lookups; `curl https://aipharmacy.in/` body |
-| Hostinger VPS | **Not found.** No DNS record points to it, and no IP, hostname or credentials were provided. | — |
+| Hostinger VPS | **Exists: Hostinger KVM 1 plan, expires 2026-11-15** (renewal emails 31 Oct and 1 Nov). Not reachable from here: no DNS record points to it, and no IP or SSH access has been provided. **Renew before 15 Nov.** | Gmail (Hostinger renewal notices) |
 | Nginx / SSL on VPS | **Not inspectable** (no VPS access). Public SSL on aipharmacy.in could not be checked independently, because this sandbox's egress proxy re-signs TLS. | `openssl s_client` shows the proxy CA |
 | Supabase | Project `fsftbvchnifshndssowe` (ap-southeast-1, Postgres 17) is **ACTIVE_HEALTHY**. It has 58 public tables, all with RLS enabled. Edge Functions: `smooth-responder` (WhatsApp webhook, v8), `pilot-access`, `ocr-read`, `google-places-search`. | Supabase MCP `list_projects`, `list_tables`, `list_edge_functions` |
 | Application hosting | Main app = **Lovable project "Rx Fingertip"** (`f3e49536…`), published, last edited 2026-11-03, commit `7ecf4978`. Lovable also hosts "Sai Stock" (published) and 9 other projects. The preview URL returns 401 without login (expected for workspace preview). | Lovable MCP `get_project` + screenshot |
@@ -86,6 +86,20 @@ Payload mapping (already in `smooth-responder`):
 `entry[].changes[].value.metadata.phone_number_id` → `phone_number_id`; `messages[]` → `whatsapp_inbox` (`id, from, contacts[].profile.name, type, text.body | caption | button.text | interactive.*.title, <media>.id, timestamp`); `statuses[]` → `whatsapp_status` (`id, recipient_id, status, errors[0].{code,title,message,error_data.details}, timestamp`). Inbound messages are de-duplicated on `wa_message_id`. Delivery tracking (sent, delivered, read, failed) is therefore **already implemented**.
 
 Notes for Codex/owner: the bot's reply is hard-coded to `"Hello"`. `GRAPH_VERSION` is `v26.0`, so check it is still supported when you go live. `wa_outbound`, `wa_events`, `wa_contacts` and `whatsapp_webhook_queue` exist but are unused (0 rows).
+
+### 4a. Meta account changes since 2 Nov (from Gmail, sridharrenukunta91@gmail.com)
+- **2 Nov 07:12 UTC:** a business portfolio named "Health care notifications" (**Business ID 1440996944155221**) asked to confirm sridharrenukunta91@gmail.com as its email.
+- **2 Nov 08:14 UTC:** Facebook says +91 78424 49808 (also the WhatsApp test recipient …9808) was **verified by another Facebook account**. The owner reports this is a new account created for **Pritham Renukunta**.
+- **2 Nov 10:38 UTC:** Sridhar's Facebook password was changed.
+- **2 Nov 11:44 UTC:** Meta **restricted business 1440996944155221** for "automation that doesn't follow our rules" (account integrity). It cannot run ads or use audiences, and a review can be requested.
+- Work has since moved to a Meta setup under Pritham Renukunta's account. No Meta connector exists in this session, so none of this could be inspected directly.
+
+**If the WhatsApp app or WABA moves to Pritham's portfolio**, the Supabase webhook keeps working only if these Edge Function secrets are updated to match the new app (Dashboard → Edge Functions → Secrets):
+- `WHATSAPP_APP_SECRET` = the new app's App Secret. If this is wrong, every Meta POST is rejected with 401.
+- `WHATSAPP_ACCESS_TOKEN` = a System User token from the new portfolio.
+- `WHATSAPP_VERIFY_TOKEN` = the same string typed into the new app's webhook settings.
+
+Then set the callback URL to `…/functions/v1/smooth-responder` and subscribe the **messages** field. The function reads `phone_number_id` from each payload, so new IDs need no code change.
 
 ## 5. n8n workflow status
 
