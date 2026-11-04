@@ -21,11 +21,11 @@
 | Don't | Why |
 |---|---|
 | Create another portfolio, WhatsApp account, app or Facebook profile | Meta treats new assets made after a restriction as **circumvention**, and can restrict all linked accounts, including the new ones. |
-| Let AI or "cloud browser" agents (Manus, ChatGPT Agent, Comet, Genspark) log into Facebook/Meta | The 2 Nov restriction says the account was "created or used with an **automation** that doesn't follow our rules". Automated logins are the most likely trigger. Only humans should click in Meta, on their own phone or computer. |
+| Let AI or "cloud browser" agents (Manus, ChatGPT Agent, Comet, Genspark) log into Facebook/Meta while this is unresolved | The 2 Nov notice cites "automation that doesn't follow our rules". The **actual cause is not yet established**: read Meta's restriction details before blaming anything. Until then, only humans click in Meta, as a precaution. |
 | Delete, disconnect or move the WhatsApp account, app, number or Page | That can break ownership and webhook links, and history can't be restored. |
 | Remove Sridhar as admin, or change admin roles | The person under review must stay reachable. |
-| Generate new access tokens or reset the app secret now | Messages can't be delivered while the account is locked anyway. A new secret breaks the live webhook (Supabase checks it). Do this only after the unlock (Part 4). |
-| Register +91 78424 49808 (ending 9808) as the WhatsApp business number | Registering a number on the Cloud API **removes it from the normal WhatsApp app** on that phone. Use a new SIM for the business. |
+| Generate new access tokens or reset the app secret now | Messages can't be delivered while the account is locked anyway. A new app secret breaks the live webhook (Supabase checks it). Inspect first, change later (Part 4). |
+| Register either personal number as the WhatsApp business number | Registering a number on the Cloud API **removes it from the normal WhatsApp app** on that phone. Use a new SIM for the business. |
 | Send many messages, or promotional/medicine-sales messages | Meta's Commerce Policy **prohibits selling prescription drugs** through WhatsApp. Order status and reminders are fine; "buy medicines here" offers are not. |
 | Share passwords, codes or tokens in chat, including with me | Not needed for any step here. |
 
@@ -38,7 +38,7 @@
 2. Look for unknown devices or locations. Log out any you don't recognise.
 3. **Confirm with the family who changed the password at 10:38 UTC on 2 Nov** (4:08 pm IST). If nobody did, tap **"Secure account"** in Facebook's email "Your password has been changed".
 4. Turn on **Two-factor authentication** (Password and security → Two-factor authentication → Authentication app or SMS).
-5. **Phone number:** Facebook said +91 78424 49808 is now verified on another account (Pritham's). A phone number should belong to **one** Facebook account.
+5. **Phone number:** Facebook said +91 78424 49808 (not the WhatsApp test recipient 90595 49808) is now verified on another account (Pritham's). A phone number should belong to **one** Facebook account.
    - If the number belongs to Pritham, remove it from Sridhar's profile: Accounts Centre → Personal details → Contact info.
    - If it belongs to Sridhar, remove it from Pritham's.
    - Keep a separate email on each profile.
@@ -61,7 +61,10 @@ Send me the business names, IDs and which items sit where. These aren't secret.
 
 ### 1.3 Note about "which account controls the WhatsApp number"
 - The WhatsApp account currently uses **Meta's free test number +1 555 145 5973**. It belongs to the WhatsApp account, not to any Facebook profile.
-- **+91 78424 49808 (ending 9808) is only the test *recipient*** (and now a Facebook login phone). It is **not** registered as a business number. Nothing needs to be "recovered" for it on the WhatsApp side.
+- **Correction (4 Nov):** there are **two different personal numbers ending in 49808**:
+  - **+91 90595 49808** is the WhatsApp **test recipient**. The October messages came from it (`wa_id 919059549808` in the stored Meta data).
+  - **+91 78424 49808** is the number Facebook says was verified by another Facebook account on 2 Nov. It's a **Facebook login phone**, not part of the WhatsApp setup.
+- Neither number is registered as a WhatsApp business number, so nothing needs "recovering" for them on the WhatsApp side. Only the Facebook login phone (78424) needs sorting out in step 1.1.
 
 ---
 
@@ -71,8 +74,16 @@ Send me the business names, IDs and which items sit where. These aren't secret.
 |---|---|---|
 | Which | "Health care notifications" (1440996944155221), email of 2 Nov 11:44 UTC | WhatsApp account 1098694666453130, error **131031** on 16, 17 and 22 Oct |
 | Effect | Can't create or run ads; can't use audiences | Every outgoing WhatsApp message fails |
-| Stated reason | "Created or used with an automation that doesn't follow our rules" (account integrity) | Meta's meaning of 131031: the WhatsApp account was **restricted or disabled for a policy violation**, or Meta couldn't verify request data (e.g. a 2-step PIN). With the test number, a policy restriction is the likely meaning. |
+| Stated reason | "Created or used with an automation that doesn't follow our rules" (account integrity). Specific cause not yet known. | Meta defines 131031 as: account **restricted or disabled for a policy violation**, *or* request data couldn't be verified (e.g. a 2-step PIN). See the stored evidence below. |
 | Where to see it | Business Support Home / Account Quality | WhatsApp Manager → Overview, plus Business Support Home |
+
+### 2.0 Stored evidence for 131031 (from Supabase `whatsapp_status.raw`, unedited Meta data)
+- Each of our send calls got an **immediate success** from the API: `messages[0].id` returned.
+- Seconds later, Meta's **status webhook** reported `status: failed`, `errors[0].code: 131031`, `title: "Business Account locked"`, `error_data.details: "Business account has been locked."`. The first was at 16 Oct 03:34 UTC (`timestamp 1792121694`); later ones matched.
+- What this rules in and out:
+  - A wrong 2-step PIN shows up when **registering** a number. It isn't part of a send request, and this setup used Meta's test number. So the PIN meaning is unlikely; it hasn't been verified in Meta.
+  - The API accepted the calls, so the **access token was valid then**.
+  - The **lock happens later, when Meta delivers the message**. That fits an account-level restriction, which only Meta's own status pages (2.2) can confirm.
 
 ### 2.1 Request a review of "Health care notifications"
 1. Signed in as Sridhar, open **business.facebook.com/business-support-home** (or the **Request review** button in Meta's 2 Nov email).
@@ -82,7 +93,7 @@ Send me the business names, IDs and which items sit where. These aren't secret.
    - that no ads were run
    - that the account was managed by hand
    - that any third-party browser tools have been stopped
-4. Submit **once**. Don't submit repeatedly. Reviews usually take 24 h to a few days.
+4. Use the **actual reason Meta shows**; don't guess. Submit **once**. Don't submit repeatedly. Reviews usually take 24 h to a few days.
 
 ### 2.2 Investigate the WhatsApp lock (131031)
 1. Open **business.facebook.com/wa/manage/home** → choose WhatsApp account **1098694666453130** → **Overview**. Look for a banner like "Account restricted" or "Disabled", with a reason and a **Request review** button. Screenshot it for me.
@@ -137,7 +148,16 @@ Not secret, so send them to me after any change:
 - WhatsApp account ID: 1098694666453130
 - Phone Number ID: 1242742535598163, or the new one
 
-**If you keep the same app ("Birds eye view"):** `WHATSAPP_APP_SECRET` and `WHATSAPP_VERIFY_TOKEN` stay as they are. Only `WHATSAPP_ACCESS_TOKEN` needs a permanent token, because the October one was temporary.
+**Don't assume which credential is broken.** Evidence from October:
+- **Verify token:** worked. Meta's webhook check succeeded on 28 Sep.
+- **App secret:** worked. Signed messages passed the signature check and were stored on 16–17 Oct.
+- **Access token:** worked. The API accepted sends up to 22 Oct.
+
+Your 15 Oct notes say the token was a *temporary* one, which normally expires within about a day. So it's **probably** expired now, but that hasn't been checked. Confirm before changing anything. After the unlock:
+1. Send one test reply.
+2. If `whatsapp_status` shows `send_error` with code 190 ("token expired/invalid"), only then replace `WHATSAPP_ACCESS_TOKEN` with a permanent system-user token.
+
+Leave the app secret and verify token alone unless a test shows they fail.
 
 **Updating safely:**
 1. Change **one** secret at a time in Supabase: Project → Edge Functions → Secrets → edit → save. The function picks it up on the next request. No redeploy is needed.
