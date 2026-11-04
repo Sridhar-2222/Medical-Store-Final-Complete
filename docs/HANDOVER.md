@@ -31,6 +31,16 @@ Status key: **DONE** = done and verified with evidence below. **READY** = built 
 - **WARN:** Leaked-password protection is off. Turn it on in Dashboard → Auth → Settings.
 - **INFO:** 19 tables have RLS on but no policies, so they can be reached only through the service role or definer functions. That is fine if intended (for example `wa_*`, `whatsapp_*`, `pilot_*`).
 
+### 1a. Recent Lovable changes in the live Rx Fingertip app (verified 2026-11-04)
+These were made **by a separate Claude session on 3 Nov**, not by this one. They reached Lovable through GitHub `main`.
+| Commit | Change | Live check on https://rx-fingertip.lovable.app |
+|---|---|---|
+| `1f1ec97`, `87842a6` | Android Share-menu receiving: files from Drive, Photos or WhatsApp go to the patient vault and chemist capture, and `/share-receive` returns after sign-in | `manifest.webmanifest` has `share_target` → `/share-target` (POST multipart). `sw.js` references `share-receive`. **Live.** |
+| `8c35489` | Service-worker install fix (`/offline` 404 broke the install and disabled share receiving) | `sw.js` falls back to `offline.html`, which returns 200. **Live.** |
+| `7ecf497` | Product-photo OCR: tolerates more batch/expiry layouts and reads files that have no type | This is the latest Lovable commit and the app is published. The live JS bundle was not inspected, so this one is **not independently confirmed**. |
+
+Codex: include share-to-app on a real Android phone (Chrome → install PWA → share a photo from WhatsApp) and product-photo OCR in the test plan.
+
 ## 2. Application repair report (`Medical-Store-Final-Complete`)
 
 Defects reproduced before fixing:
