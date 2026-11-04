@@ -104,7 +104,38 @@ The test used the app's own "No code → Another shop (own test space)" path. It
 
 **Owner's Fenalin SP photo:** the phone reader works on a sharp, close-up label (row 10), so that failure was photo quality: small, tilted, far away.
 
-**Test data left in production:** the two TEST businesses and accounts above, 1 order, bill TEST-001, a ₹100 payment, 2 stock rows, 3 stock movements and 2 capture drafts. Every name contains "TEST"/"synthetic". Delete it, or keep it as a demo pair, on the owner's instruction.
+**Second round (4 Nov, ~07:28–07:45 UTC), same TEST accounts plus a new test patient, "Pilot Patient 477308":**
+
+| # | Step | Result |
+|---|---|---|
+| 12 | Distributor downloads the stock template, uploads a 3-row CSV, columns auto-matched | **PASS.** 3 rows ready, 0 problems, published |
+| 13 | Share with the chemist as "Exact" | **PASS.** Chemist sees "Reported available: 120". Supplier rate and batch are **not** shown, as promised. |
+| 14 | Re-upload with quantity 100 | **PASS.** The chemist sees 100, and both imports appear in history. |
+| 15 | Sharing set to "Availability only", then "Hidden" | **PASS.** Shows only "Available", then the item disappears. Restored to Exact afterwards. |
+| 16 | Chemist returns 1 Cetirizine (near expiry); distributor accepts with ₹22.40 credit | **PASS.** Chemist stock 5→4 on sending. Both ledgers show due ₹191.20 (313.60 − 100 − 22.40). |
+| 17 | Patient opens the shop join link `/join/WFXRYK9N` | **PASS.** "Join shop" stays disabled until the consent box is ticked; then joined. |
+| 18 | Patient sends a pre-order; chemist marks it "Ready for pickup" with a message | **PASS.** The patient sees the status and "Shop says: …". |
+| 19 | Patient uploads a synthetic lab report to the private vault | **PASS.** Saved, survives a reload, and View opens a Supabase signed URL. |
+| 20 | Patient shares it with the chemist for 1 day (choices 1, 3 or 7 days; consent required) | **PASS.** The chemist sees it with "ends in 24 h" and opens it; the patient then sees "opened 1 times". |
+| 21 | Patient taps "Stop sharing" | **PASS.** The chemist sees "Nothing shared right now". |
+| 22 | Date-range report 1–4 Nov | **PASS.** Invoices ₹313.60 (1); movements purchases ₹280 and sales ₹105; per-item in/out/adjust/balance all correct (Cetirizine 5/0/−1/4, Paracetamol 6/3/0/3). |
+
+**Small defects found:**
+- (a) The patient vault says "opened 1 times"; it should say "1 time".
+- (b) Cloud reading shows "not reachable" for an invalid key (see the Gemma diagnosis above).
+
+**Not exercised:**
+- purchase-invoice and sales-bill photo capture (they depend on the same Gemma fix)
+- prescription reading (disabled by design)
+- Vital Check (native Android)
+- Telugu voice search
+- real Android share-to-app
+- the signed-URL lifetime for vault files
+- cross-tenant RLS probing (Codex security test)
+
+**Decision on test data:** kept as a labelled demo pair (Pilot Chemist 290D5B, Pilot Distributor C5B872, Pilot Patient 477308; all records marked TEST or synthetic), because deleting across linked ledgers in production carries more risk than keeping it. Delete only on the owner's instruction.
+
+**Test data left in production (round 1):** the two TEST businesses and accounts above, 1 order, bill TEST-001, a ₹100 payment, 2 stock rows, 3 stock movements and 2 capture drafts. Every name contains "TEST"/"synthetic". Delete it, or keep it as a demo pair, on the owner's instruction.
 
 ## 2. Application repair report (`Medical-Store-Final-Complete`)
 
