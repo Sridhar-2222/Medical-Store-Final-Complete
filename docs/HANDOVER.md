@@ -132,6 +132,8 @@ The test used the app's own "No code → Another shop (own test space)" path. It
 - Results: 40 tests pass, 0 fail, and the build is OK. Two real calls: the first got a 500, was retried and returned OK in 35.2 s total; the second returned OK in 21.1 s.
 - **Owner must publish** for the fix to go live. Then rerun row 11.
 
+**Fixed 4 Nov, not published:** the vault text now reads "opened 1 time" / "opened 2 times", plus the Telugu singular and plural forms (Lovable commit `617d74e`; 462 tests pass, build OK). **WhatsApp templates** ready to submit: `docs/whatsapp-templates.md`.
+
 **Small defects found:**
 - (a) The patient vault says "opened 1 times"; it should say "1 time".
 - (b) Cloud reading shows "not reachable" for an invalid key (see the Gemma diagnosis above).
