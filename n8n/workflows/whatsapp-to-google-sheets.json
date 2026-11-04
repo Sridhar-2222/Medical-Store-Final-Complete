@@ -1,0 +1,130 @@
+{
+  "name": "Fingertip WhatsApp -> Google Sheets (inbox + delivery tracking)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fingertip-whatsapp",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1f0c6c2-0001-4c1e-9d10-000000000001",
+      "name": "Supabase DB Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "fingertip-whatsapp",
+      "credentials": {
+        "httpHeaderAuth": { "id": "REPLACE_ON_IMPORT", "name": "Fingertip webhook secret (x-fingertip-secret)" }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "typeValidation": "strict" },
+                "conditions": [
+                  { "leftValue": "={{ $json.body.table }}", "rightValue": "whatsapp_inbox", "operator": { "type": "string", "operation": "equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "inbox"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "typeValidation": "strict" },
+                "conditions": [
+                  { "leftValue": "={{ $json.body.table }}", "rightValue": "whatsapp_status", "operator": { "type": "string", "operation": "equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1f0c6c2-0002-4c1e-9d10-000000000002",
+      "name": "Route by table",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "id", "value": "REPLACE_WITH_SPREADSHEET_ID" },
+        "sheetName": { "__rl": true, "mode": "name", "value": "Inbox" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "received_at": "={{ $json.body.record.received_at }}",
+            "sent_at": "={{ $json.body.record.sent_at }}",
+            "wa_message_id": "={{ $json.body.record.wa_message_id }}",
+            "from_number": "={{ $json.body.record.from_number }}",
+            "contact_name": "={{ $json.body.record.contact_name }}",
+            "msg_type": "={{ $json.body.record.msg_type }}",
+            "text_body": "={{ $json.body.record.text_body }}",
+            "media_id": "={{ $json.body.record.media_id }}",
+            "phone_number_id": "={{ $json.body.record.phone_number_id }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "a1f0c6c2-0003-4c1e-9d10-000000000003",
+      "name": "Append Inbox row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [520, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "REPLACE_ON_IMPORT", "name": "Google Sheets (Fingertip)" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "id", "value": "REPLACE_WITH_SPREADSHEET_ID" },
+        "sheetName": { "__rl": true, "mode": "name", "value": "Delivery" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "received_at": "={{ $json.body.record.received_at }}",
+            "status_at": "={{ $json.body.record.status_at }}",
+            "wa_message_id": "={{ $json.body.record.wa_message_id }}",
+            "recipient": "={{ $json.body.record.recipient }}",
+            "status": "={{ $json.body.record.status }}",
+            "error_code": "={{ $json.body.record.error_code }}",
+            "error_title": "={{ $json.body.record.error_title }}",
+            "error_message": "={{ $json.body.record.error_message }}",
+            "error_details": "={{ $json.body.record.error_details }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "a1f0c6c2-0004-4c1e-9d10-000000000004",
+      "name": "Append Delivery row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [520, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "REPLACE_ON_IMPORT", "name": "Google Sheets (Fingertip)" }
+      }
+    }
+  ],
+  "connections": {
+    "Supabase DB Webhook": { "main": [[{ "node": "Route by table", "type": "main", "index": 0 }]] },
+    "Route by table": {
+      "main": [
+        [{ "node": "Append Inbox row", "type": "main", "index": 0 }],
+        [{ "node": "Append Delivery row", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "Asia/Kolkata" },
+  "active": false
+}

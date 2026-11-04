@@ -1,3 +1,10 @@
+-- WARNING (2026-11-04): DO NOT run this on the production Rx Fingertip project
+-- (fsftbvchnifshndssowe). That database is Codex-owned, has its own stock tables
+-- (shop_stock_entries, distributor_inventory, ...) and RLS on every table.
+-- This script creates a separate `medicines` table, a PUBLIC `bills` bucket and
+-- disables RLS — use it only on a separate, private Supabase project for this
+-- standalone medical-store app, and enable RLS before real data goes in.
+--
 -- FINAL SCHEMA - Run in Supabase SQL Editor
 create extension if not exists pgcrypto;
 

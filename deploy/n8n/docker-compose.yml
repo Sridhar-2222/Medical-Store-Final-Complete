@@ -1,0 +1,33 @@
+# n8n for aipharmacy.in — run on the Hostinger VPS:
+#   cd /opt/n8n && cp /opt/fingertip/current/deploy/n8n/docker-compose.yml . && cp n8n.env.example .env  (fill it)
+#   docker compose up -d
+# Data persists in the named volume `n8n_data`; deploy/scripts/backup.sh archives it.
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:1.111.0   # pin; upgrade deliberately after backup
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"                # only Nginx can reach it
+    env_file: .env
+    environment:
+      - N8N_HOST=n8n.aipharmacy.in
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      - WEBHOOK_URL=https://n8n.aipharmacy.in/
+      - N8N_PROXY_HOPS=1
+      - GENERIC_TIMEZONE=Asia/Kolkata
+      - TZ=Asia/Kolkata
+      - N8N_SECURE_COOKIE=true
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=336
+    volumes:
+      - n8n_data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  n8n_data:

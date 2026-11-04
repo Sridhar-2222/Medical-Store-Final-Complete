@@ -29,16 +29,18 @@ async function uploadBill(){
  const f=document.getElementById('billFile').files[0]; if(!f) return alert('Select bill');
  const fd=new FormData(); fd.append('bill', f);
  document.getElementById('status').innerText='Reading...';
- const res=await fetch('/api/upload-bill',{method:'POST',body:fd});
- const data=await res.json();
- document.getElementById('status').innerText=data.success?`Added ${data.count} items ✅`:'Failed ❌';
+ let data={};
+ try{const res=await fetch('/api/upload-bill',{method:'POST',body:fd}); data=await res.json();}catch(e){data={error:e.message};}
+ document.getElementById('status').innerText=data.success?`Added ${data.count} items ✅`:`Failed ❌ ${data.error||''}`;
  load();
 }
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function load(){
  const res=await fetch('/api/medicines'); const data=await res.json();
+ if(!res.ok||!Array.isArray(data)){document.getElementById('list').innerHTML=`<tr><td colspan=5>Could not load stock: ${esc(data&&data.error)}</td></tr>`;return;}
  document.getElementById('total').innerText=data.length;
  document.getElementById('low').innerText=data.filter(d=>d.quantity<10).length;
- document.getElementById('list').innerHTML=data.map(m=>`<tr><td>${m.name}</td><td>${m.batch||''}</td><td>${m.quantity}</td><td>${m.mrp||''}</td><td>${m.expiry?m.expiry.slice(0,7):''} ${m.quantity<10?'<span class=badge>Low</span>':''}</td></tr>`).join('');
+ document.getElementById('list').innerHTML=data.map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.batch)}</td><td>${esc(m.quantity)}</td><td>${esc(m.mrp)}</td><td>${m.expiry?esc(String(m.expiry).slice(0,7)):''} ${m.quantity<10?'<span class=badge>Low</span>':''}</td></tr>`).join('');
 }
 load();
 </script></body></html>

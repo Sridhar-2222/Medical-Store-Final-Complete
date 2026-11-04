@@ -1,34 +1,33 @@
-MEDICAL STORE - FINAL READY TO USE APP
-=====================================
+# Medical Store app (Fingertip / aipharmacy.in)
 
-THIS IS COMPLETE APP - WEB + WHATSAPP
+Small Node/Express app: upload a medical bill photo or PDF, have Gemini read it, and add the lines to stock in Supabase.
 
-WHAT YOU GET:
-- Web App to view stock, upload bills
-- WhatsApp bot - forward bill photo -> auto stock update
-- Handles 50 bills/day
+> The main Rx Fingertip platform is the Lovable app plus the Supabase project `fsftbvchnifshndssowe`.
+> This repo holds this standalone stock app, the VPS deployment kit, the n8n workflow and the Health Connect adapter.
+> Full status, blockers and next steps: **[docs/HANDOVER.md](docs/HANDOVER.md)**.
 
-DEPLOY IN 10 MINUTES:
----------------------
-1. Go to github.com -> New Repo -> medical-final-complete -> Upload ALL files from ZIP
-2. Go to render.com -> New Web Service -> Connect your repo
-   Build Command: npm install
-   Start Command: node whatsapp-bot.js
-   Environment: Node
-3. Add 3 Environment Variables (from .env.example):
-   SUPABASE_URL
-   SUPABASE_KEY
-   GOOGLE_API_KEY
-4. Deploy -> Wait 2 min -> Open LOGS -> QR CODE will appear
-5. WhatsApp on Phone -> Settings -> Linked Devices -> Link a Device -> Scan QR
+## Run locally
 
-DONE! 
+```bash
+cp .env.example .env     # fill SUPABASE_URL, SUPABASE_KEY, GOOGLE_API_KEY
+npm install
+npm test
+npm start                # http://localhost:10000
+```
 
-NOW USE:
-- Web: Your render link (https://your-app.onrender.com)
-- WhatsApp: Just send bill photo to yourself, bot will reply "Stock Updated"
+| Route | Purpose |
+|---|---|
+| `GET /` | Web UI (`public/index.html`) |
+| `POST /api/upload-bill` | multipart field `bill` (image or PDF, max 10 MB) |
+| `GET /api/medicines`, `GET /api/low-stock` | Stock list |
+| `GET /health` | Liveness check |
+| `GET /health/ready` | Readiness check (Supabase reachable) |
 
-DATABASE SETUP (One time):
-- Go to supabase.com -> SQL Editor -> Paste content of supabase-schema.sql -> Run
+## WhatsApp
 
-Need help? Reply "Deploy help"
+The official channel is the **Meta WhatsApp Cloud API**. Its webhook is the Supabase Edge Function `smooth-responder`.
+The old Baileys (WhatsApp-Web QR) bot in this app is **disabled by default**. Linking a personal number through an unofficial client can get the number banned. Turn it on only deliberately, with `ENABLE_BAILEYS_BOT=true`.
+
+## Deploy to a VPS (Hostinger)
+
+See `deploy/` and the runbook in `docs/HANDOVER.md` §7. It covers Nginx with TLS for `aipharmacy.in` and `n8n.aipharmacy.in`, a systemd service, n8n in Docker, `deploy.sh` (automatic rollback if the health check fails), `rollback.sh`, `healthcheck.sh` (cron monitoring) and `backup.sh` (nightly).

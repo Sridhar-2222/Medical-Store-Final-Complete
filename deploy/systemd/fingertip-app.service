@@ -1,0 +1,27 @@
+# /etc/systemd/system/fingertip-app.service
+# sudo systemctl daemon-reload && sudo systemctl enable --now fingertip-app
+[Unit]
+Description=Fingertip medical-store web app (aipharmacy.in)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fingertip
+Group=fingertip
+# /opt/fingertip/current is a symlink to a release dir (see deploy/scripts/deploy.sh)
+WorkingDirectory=/opt/fingertip/current
+EnvironmentFile=/etc/fingertip/app.env
+Environment=NODE_ENV=production HOST=127.0.0.1 PORT=10000
+ExecStart=/usr/bin/node whatsapp-bot.js
+Restart=always
+RestartSec=5
+# hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/fingertip/state
+
+[Install]
+WantedBy=multi-user.target
