@@ -120,6 +120,18 @@ The test used the app's own "No code → Another shop (own test space)" path. It
 | 21 | Patient taps "Stop sharing" | **PASS.** The chemist sees "Nothing shared right now". |
 | 22 | Date-range report 1–4 Nov | **PASS.** Invoices ₹313.60 (1); movements purchases ₹280 and sales ₹105; per-item in/out/adjust/balance all correct (Cetirizine 5/0/−1/4, Paracetamol 6/3/0/3). |
 
+**Gemma follow-up (4 Nov, 08:35–09:10 UTC):**
+- The owner re-saved `GEMINI_API_KEY` and republished. The live site still returned 502.
+- Lovable's agent then ran real text-only calls. **The key, the model `gemma-4-31b-it` and `thinkingLevel: minimal` are all valid.** The cause is Google's free tier: intermittent **500 INTERNAL** errors and 8–54 s latency, against the old 45 s timeout.
+- Owner-approved fix, Lovable commits `8a46955` and `d55c206`, **not published**:
+  - Google's error status, message and reasons are now logged (never the key).
+  - A 400 with `API_KEY_INVALID` now maps to `not_configured`.
+  - Each attempt may take 90 s.
+  - **One** retry, after a 2 s pause, and only on 500/503 or a first-attempt timeout. There is no retry on 400/401/403/429.
+  - The whole request has a 98 s budget, to stay under the ~100 s edge limit, so a retry happens only if at least 15 s remain.
+- Results: 40 tests pass, 0 fail, and the build is OK. Two real calls: the first got a 500, was retried and returned OK in 35.2 s total; the second returned OK in 21.1 s.
+- **Owner must publish** for the fix to go live. Then rerun row 11.
+
 **Small defects found:**
 - (a) The patient vault says "opened 1 times"; it should say "1 time".
 - (b) Cloud reading shows "not reachable" for an invalid key (see the Gemma diagnosis above).
