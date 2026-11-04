@@ -41,6 +41,18 @@ These were made **by a separate Claude session on 3 Nov**, not by this one. They
 
 Codex: include share-to-app on a real Android phone (Chrome → install PWA → share a photo from WhatsApp) and product-photo OCR in the test plan.
 
+### 1b. Product-photo reading fails on the live app (owner test, 4 Nov ~11:50 IST)
+- **Symptom:** Fenalin SP pack photo. Every field shows "not read clearly", and the cloud option says "Gemma is not available now, type details".
+- **Path:** cloud reading is the app's own server route `POST /api/gemma-read` (TanStack, `src/lib/gemma.server.ts`), **not** the Supabase `ocr-read` function. `ocr-read` had no calls in the last 24 h.
+- **Live check:** `/api/gemma-read` now returns `401 unauthorized` to unsigned calls, so it is deployed (it returned 404 on 1 Nov).
+- **Probable cause:** `gemmaKey()` finds neither `GEMMA_API_KEY` nor `GEMINI_API_KEY` in the **Lovable app's** environment, or Google refuses the key (401/403). Both cases raise `not_configured`. The app's own handover (`docs/handover/PHOTO-READER-CONNECTION.md`, 1 Nov) recorded both secrets as absent. A key saved in Supabase Edge secrets does **not** reach the Lovable runtime.
+- **Owner fix:** go to Lovable → Rx Fingertip → Project Settings → Secrets (https://lovable.dev/projects/f3e49536-7326-4203-921e-1eb222f08bb1/settings) and add `GEMINI_API_KEY` = the Google AI Studio key. Never paste it in chat. Then retest with cloud consent ticked.
+- **On-device reading:** the test photo shows the pack small, tilted and far from the camera, so the label text is only a few pixels high. Retake it close up, flat, filling the frame, one photo for the front and one for the batch/expiry/MRP side.
+
+### 1c. Existing Lovable assets this audit initially missed
+- The Lovable repo already has `native/vital-check/android/VitalSteps.kt` (a native steps reader) and `integrations/n8n/vital-daily-scheduler.json`.
+- Codex should reconcile `health-connect/adapter.js` here with `VitalSteps.kt`, keeping one Health Connect path, and run the n8n vital scheduler on the same n8n instance as the WhatsApp→Sheets workflow.
+
 ## 2. Application repair report (`Medical-Store-Final-Complete`)
 
 Defects reproduced before fixing:
