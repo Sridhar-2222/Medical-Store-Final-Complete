@@ -58,7 +58,7 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "__rl": true, "mode": "id", "value": "REPLACE_WITH_SPREADSHEET_ID" },
+        "documentId": { "__rl": true, "mode": "id", "value": "1YiMLL6RcsgUs1Y4YFxqKvDgVYPisHd5DD-JwdhKCTc0" },
         "sheetName": { "__rl": true, "mode": "name", "value": "Inbox" },
         "columns": {
           "mappingMode": "defineBelow",
@@ -88,7 +88,7 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "__rl": true, "mode": "id", "value": "REPLACE_WITH_SPREADSHEET_ID" },
+        "documentId": { "__rl": true, "mode": "id", "value": "1YiMLL6RcsgUs1Y4YFxqKvDgVYPisHd5DD-JwdhKCTc0" },
         "sheetName": { "__rl": true, "mode": "name", "value": "Delivery" },
         "columns": {
           "mappingMode": "defineBelow",

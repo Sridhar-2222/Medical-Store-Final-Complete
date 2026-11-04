@@ -111,7 +111,12 @@ Then set the callback URL to `…/functions/v1/smooth-responder` and subscribe t
 
 ## 6. Google Sheets integration status
 
-**READY, BLOCKED on owner.** The owner must create the spreadsheet with tabs `Inbox` and `Delivery`, using the header rows in §10-D. Then connect a Google Sheets OAuth credential inside n8n. I did not create a sheet, so as not to put files in the wrong Google account.
+**Sheet created and back-filled; live sync waits on n8n (2026-11-04).**
+- The spreadsheet **"Fingertip WhatsApp Log"** is in the owner's Drive (sridharrenukunta91@gmail.com): https://docs.google.com/spreadsheets/d/1YiMLL6RcsgUs1Y4YFxqKvDgVYPisHd5DD-JwdhKCTc0/edit. It uses the IST timezone and frozen bold headers.
+- **Inbox** tab: all 5 rows from `whatsapp_inbox`. The 2026-09-28 row is Meta's dashboard sample payload.
+- **Delivery** tab: all 10 rows from `whatsapp_status`. These are 3 `api_accepted` and 7 `failed` with code 131031.
+- The back-fill was a one-time copy taken through the Supabase and Sheets connectors. **New** messages are copied only once the n8n workflow runs (§5). Its spreadsheet ID is already set in `n8n/workflows/whatsapp-to-google-sheets.json`.
+- Still needed from the owner: an n8n Google Sheets OAuth credential signed in as sridharrenukunta91@gmail.com.
 
 ## 7. Health Connect findings
 
@@ -198,10 +203,7 @@ Lovable alternative: if aipharmacy.in should serve the **Lovable Rx Fingertip ap
 - hPanel → VPS: write down the IPv4 and OS (Ubuntu 22.04/24.04 recommended), and turn on **snapshots/backups** before any change.
 - Run the deployment yourself using §9. Or, for an agent, create a non-root sudo user with an **SSH key** (not a password), allow it in hPanel → VPS → Firewall (22/80/443), and share access through Claude's Remote Control or an approved channel. **Never paste passwords into chat.**
 
-**D. Google Sheets**
-- Create a spreadsheet "Fingertip WhatsApp Log" with tab `Inbox` (headers: `received_at, sent_at, wa_message_id, from_number, contact_name, msg_type, text_body, media_id, phone_number_id`) and tab `Delivery` (headers: `received_at, status_at, wa_message_id, recipient, status, error_code, error_title, error_message, error_details`).
-- In n8n → Credentials → Google Sheets OAuth2, sign in with the owning Google account.
-- Paste the spreadsheet ID into both Sheets nodes.
+**D. Google Sheets**: the sheet is created (§6). Once n8n runs, go to n8n → Credentials → Google Sheets OAuth2 and sign in as sridharrenukunta91@gmail.com.
 
 **E. Supabase Database Webhooks (after n8n is up)**
 - Dashboard → Database → Webhooks → Create:
