@@ -53,6 +53,34 @@ Codex: include share-to-app on a real Android phone (Chrome → install PWA → 
 - The Lovable repo already has `native/vital-check/android/VitalSteps.kt` (a native steps reader) and `integrations/n8n/vital-daily-scheduler.json`.
 - Codex should reconcile `health-connect/adapter.js` here with `VitalSteps.kt`, keeping one Health Connect path, and run the n8n vital scheduler on the same n8n instance as the WhatsApp→Sheets workflow.
 
+### 1d. Live app walkthrough — https://rx-fingertip.lovable.app (4 Nov, Pixel 7 emulation, signed out)
+- **60 pages visited**: all return 200, with **0 console errors and 0 failed requests**. Public pages tested: home, the 5 role pages, the 5 demo pages, 7 dashboards, directory (hospitals, labs, emergency), doctors, learn, stock status/checklist, about, contact, privacy, terms, delete-account.
+- Every signed-in page (pharmacy, shop-stock, stock-records, stock-moves, stock-review, stock-import, orders, shortages, purchase-invoice, sales-bill, rx-reading, patient-orders, my-health, my-shops, directory-admin) redirects to `/auth` and its pilot-code screen, as designed. **Signed-in flows were not exercised.** That needs a pilot test account, and the owner has not authorised creating one in production.
+- **Real usage in the live DB:**
+
+| Item | Count |
+|---|---|
+| distributor–chemist links | 0 |
+| orders | 0 |
+| bills | 0 |
+| receipts | 0 |
+| distributor inventory rows | 0 |
+| prescriptions | 0 |
+| vital readings | 0 |
+| shop stock entries | 2 |
+| stock movements | 0 |
+| capture drafts | 18 (2 in the last 24 h, i.e. the owner's test) |
+| vault records | 1 |
+| businesses | 10 |
+| pilot access requests | 0 |
+
+  The core trade flow (link → order → bill → receipt) has **never run end to end**.
+- **Unfinished work the app lists on its own pages** (the "things to fix" cards, source review 2 Nov):
+  - **Feature not built:** sending the original handwritten order photo/PDF to the distributor; prescription handwriting reading (auto-reading is off); hospital departments (lab, pharmacy, OP, IP, radiology, admin) with controlled sharing; hospital finance and operations reports; per-hospital info pages and voice answers; AI answers to hospital questions (search currently opens Google); patient inquiries and feedback; doctor–patient linkage with consultation records and reminders; the business patient-file vault and notes; OTP customer onboarding for every business type; delivery requests and status (location is a one-time pin only).
+  - **Needs account setup:** the photo reader key (§1b); pilot codes are short and guessable, so real sign-in is needed before going past the first 50 users; the owner hands out pilot codes manually.
+  - **Needs a manual test:** order → short supply → invoice → receipt with matching balances on both sides; order/invoice downloads on phone and desktop with one account; distributor file mapping and re-uploads; combined purchase + sale + shelf counts with save, refresh and reopen; private vault on a second device; video playback per role on Android.
+  - **Code ready, release test needed:** product and date-range reports; medicine-search and video shortcuts on role and demo pages.
+
 ## 2. Application repair report (`Medical-Store-Final-Complete`)
 
 Defects reproduced before fixing:
