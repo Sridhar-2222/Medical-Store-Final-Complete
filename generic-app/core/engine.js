@@ -32,6 +32,9 @@
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
+  // Accept an id chosen by the client (offline devices create records before the
+  // server sees them, so the id must stay the same when the change is uploaded).
+  function newId(v) { return typeof v === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(v) ? v : uid(); }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function localDate(d) {
     d = d || new Date();
@@ -178,7 +181,7 @@
     // --- normalisers ---
     function normItem(input, existing) {
       var s = settings();
-      var it = existing ? existing : { id: uid(), createdAt: stamp(), stock: 0 };
+      var it = existing ? existing : { id: newId(input.id), createdAt: stamp(), stock: 0 };
       var isService = !!input.isService;
       if (!str(input.name)) fail('Name is required');
       it.name = str(input.name);
@@ -202,7 +205,7 @@
       return it;
     }
     function normParty(input, existing) {
-      var p = existing ? existing : { id: uid(), createdAt: stamp(), balance: 0, points: 0 };
+      var p = existing ? existing : { id: newId(input.id), createdAt: stamp(), balance: 0, points: 0 };
       if (!str(input.name)) fail('Name is required');
       ['name', 'phone', 'email', 'address', 'taxId', 'notes'].forEach(function (k) { p[k] = str(input[k]); });
       if (input.custom) p.custom = Object.assign({}, p.custom || {}, input.custom);
@@ -419,7 +422,7 @@
           touch(col, doc);
         } else if (col === 'staff') {
           if (!str(input.name)) fail('Name is required');
-          doc = existing || { id: uid(), createdAt: stamp() };
+          doc = existing || { id: newId(input.id), createdAt: stamp() };
           doc.name = str(input.name); doc.role = str(input.role); doc.phone = str(input.phone);
           doc.commissionRate = num(input.commissionRate); doc.salary = num(input.salary);
           doc.active = input.active === undefined ? true : !!input.active;
@@ -427,7 +430,7 @@
           touch('staff', doc);
         } else if (col === 'expenses') {
           if (num(input.amount) <= 0) fail('Amount must be more than zero');
-          doc = existing || { id: uid(), createdAt: stamp() };
+          doc = existing || { id: newId(input.id), createdAt: stamp() };
           doc.date = isDate(input.date) ? input.date : today();
           doc.category = str(input.category) || 'Other';
           doc.amount = r2(num(input.amount)); doc.method = str(input.method) || 'Cash';
@@ -438,7 +441,7 @@
           if (!isDate(input.date)) fail('Date is required');
           var cust = input.customerId ? find('customers', input.customerId) : null;
           if (!cust && !str(input.customerName)) fail('Customer name is required');
-          doc = existing || { id: uid(), createdAt: stamp(), status: 'booked' };
+          doc = existing || { id: newId(input.id), createdAt: stamp(), status: 'booked' };
           doc.date = input.date; doc.time = str(input.time) || '10:00';
           doc.customerId = cust ? cust.id : ''; doc.customerName = cust ? cust.name : str(input.customerName);
           doc.phone = cust ? cust.phone : str(input.phone);
@@ -476,6 +479,7 @@
 
     api.createSale = function (input) {
       input = input || {};
+      if (input.id && find('sales', input.id)) return clone(find('sales', input.id));
       return tx(function () {
         var s = settings();
         var q = quote(input);
@@ -493,10 +497,10 @@
         q.lines.forEach(function (l) { if (l.itemId) need[l.itemId] = (need[l.itemId] || 0) + l.qty; });
         Object.keys(need).forEach(function (id) {
           var it = find('items', id);
-          if (it.trackStock && !s.allowNegativeStock && it.stock < need[id]) fail('Not enough stock for ' + it.name + ' (available ' + it.stock + ')');
+          if (it.trackStock && !s.allowNegativeStock && !input.replay && it.stock < need[id]) fail('Not enough stock for ' + it.name + ' (available ' + it.stock + ')');
         });
 
-        var sale = Object.assign({ id: uid(), number: nextNumber(s.invoicePrefix || 'INV-'), date: isDate(input.date) ? input.date : today(), at: stamp(),
+        var sale = Object.assign({ id: newId(input.id), number: nextNumber(s.invoicePrefix || 'INV-'), date: isDate(input.date) ? input.date : today(), at: stamp(),
           customerId: cust ? cust.id : '', customerName: cust ? cust.name : (str(input.customerName) || 'Walk-in'),
           customerPhone: cust ? cust.phone : str(input.customerPhone),
           staffId: str(input.staffId), method: str(input.method) || 'Cash', notes: str(input.notes),
@@ -543,13 +547,14 @@
     // ---------- Purchases ----------
     api.createPurchase = function (input) {
       input = input || {};
+      if (input.id && find('purchases', input.id)) return clone(find('purchases', input.id));
       return tx(function () {
         var s = settings();
         var p = preset();
         var sup = input.supplierId ? mustFind('suppliers', input.supplierId, 'Supplier') : null;
         var lines = (input.lines || []).filter(function (l) { return l && (l.itemId || str(l.name)) && num(l.qty) > 0; });
         if (!lines.length) fail('Add at least one item with quantity');
-        var pur = { id: uid(), number: nextNumber(s.purchasePrefix || 'PUR-'), date: isDate(input.date) ? input.date : today(), at: stamp(),
+        var pur = { id: newId(input.id), number: nextNumber(s.purchasePrefix || 'PUR-'), date: isDate(input.date) ? input.date : today(), at: stamp(),
           supplierId: sup ? sup.id : '', supplierName: sup ? sup.name : (str(input.supplierName) || 'Cash purchase'),
           billNo: str(input.billNo), notes: str(input.notes), method: str(input.method) || 'Cash', lines: [], subtotal: 0, tax: 0, total: 0 };
         lines.forEach(function (l) {
@@ -840,6 +845,37 @@
         });
         return { created: created, updated: updated, skipped: skipped };
       });
+    };
+
+    // ---------- Offline sync ----------
+    // ops: [{opId, method, args}] recorded by a device while it was offline.
+    // Each op is applied once (op ids are remembered), in order. A business
+    // error (e.g. bill already cancelled on another phone) is reported back and
+    // not retried; anything else stops the batch so it can be retried later.
+    var SYNCABLE = ['setup', 'saveSettings', 'save', 'remove', 'createSale', 'voidSale', 'createPurchase', 'voidPurchase',
+      'adjustStock', 'recordPayment', 'setAppointmentStatus', 'billAppointment', 'importCSV', 'loadSamples'];
+    api.applyOps = function (ops) {
+      if (!Array.isArray(ops)) fail('ops must be a list');
+      if (!Array.isArray(db.meta.appliedOps)) db.meta.appliedOps = [];
+      var results = [];
+      for (var i = 0; i < ops.length; i++) {
+        var op = ops[i] || {};
+        if (!op.opId || SYNCABLE.indexOf(op.method) < 0) { results.push({ opId: op.opId, ok: false, error: 'Unsupported change ' + op.method }); continue; }
+        if (db.meta.appliedOps.indexOf(op.opId) >= 0) { results.push({ opId: op.opId, ok: true, duplicate: true }); continue; }
+        var res;
+        try { res = { opId: op.opId, ok: true, result: api[op.method].apply(null, op.args || []) }; }
+        catch (e) {
+          if (!e.userError) throw e;
+          res = { opId: op.opId, ok: false, error: e.message };
+        }
+        tx(function () {
+          db.meta.appliedOps.push(op.opId);
+          if (db.meta.appliedOps.length > 5000) db.meta.appliedOps = db.meta.appliedOps.slice(-5000);
+          changes.settings = true;
+        });
+        results.push(res);
+      }
+      return results;
     };
 
     api.methods = function () { return Object.keys(api); };

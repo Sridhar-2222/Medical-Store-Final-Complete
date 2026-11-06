@@ -524,6 +524,9 @@ tr.clickable:hover td { background: var(--surface-2); }
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
+  // Accept an id chosen by the client (offline devices create records before the
+  // server sees them, so the id must stay the same when the change is uploaded).
+  function newId(v) { return typeof v === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(v) ? v : uid(); }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function localDate(d) {
     d = d || new Date();
@@ -670,7 +673,7 @@ tr.clickable:hover td { background: var(--surface-2); }
     // --- normalisers ---
     function normItem(input, existing) {
       var s = settings();
-      var it = existing ? existing : { id: uid(), createdAt: stamp(), stock: 0 };
+      var it = existing ? existing : { id: newId(input.id), createdAt: stamp(), stock: 0 };
       var isService = !!input.isService;
       if (!str(input.name)) fail('Name is required');
       it.name = str(input.name);
@@ -694,7 +697,7 @@ tr.clickable:hover td { background: var(--surface-2); }
       return it;
     }
     function normParty(input, existing) {
-      var p = existing ? existing : { id: uid(), createdAt: stamp(), balance: 0, points: 0 };
+      var p = existing ? existing : { id: newId(input.id), createdAt: stamp(), balance: 0, points: 0 };
       if (!str(input.name)) fail('Name is required');
       ['name', 'phone', 'email', 'address', 'taxId', 'notes'].forEach(function (k) { p[k] = str(input[k]); });
       if (input.custom) p.custom = Object.assign({}, p.custom || {}, input.custom);
@@ -911,7 +914,7 @@ tr.clickable:hover td { background: var(--surface-2); }
           touch(col, doc);
         } else if (col === 'staff') {
           if (!str(input.name)) fail('Name is required');
-          doc = existing || { id: uid(), createdAt: stamp() };
+          doc = existing || { id: newId(input.id), createdAt: stamp() };
           doc.name = str(input.name); doc.role = str(input.role); doc.phone = str(input.phone);
           doc.commissionRate = num(input.commissionRate); doc.salary = num(input.salary);
           doc.active = input.active === undefined ? true : !!input.active;
@@ -919,7 +922,7 @@ tr.clickable:hover td { background: var(--surface-2); }
           touch('staff', doc);
         } else if (col === 'expenses') {
           if (num(input.amount) <= 0) fail('Amount must be more than zero');
-          doc = existing || { id: uid(), createdAt: stamp() };
+          doc = existing || { id: newId(input.id), createdAt: stamp() };
           doc.date = isDate(input.date) ? input.date : today();
           doc.category = str(input.category) || 'Other';
           doc.amount = r2(num(input.amount)); doc.method = str(input.method) || 'Cash';
@@ -930,7 +933,7 @@ tr.clickable:hover td { background: var(--surface-2); }
           if (!isDate(input.date)) fail('Date is required');
           var cust = input.customerId ? find('customers', input.customerId) : null;
           if (!cust && !str(input.customerName)) fail('Customer name is required');
-          doc = existing || { id: uid(), createdAt: stamp(), status: 'booked' };
+          doc = existing || { id: newId(input.id), createdAt: stamp(), status: 'booked' };
           doc.date = input.date; doc.time = str(input.time) || '10:00';
           doc.customerId = cust ? cust.id : ''; doc.customerName = cust ? cust.name : str(input.customerName);
           doc.phone = cust ? cust.phone : str(input.phone);
@@ -968,6 +971,7 @@ tr.clickable:hover td { background: var(--surface-2); }
 
     api.createSale = function (input) {
       input = input || {};
+      if (input.id && find('sales', input.id)) return clone(find('sales', input.id));
       return tx(function () {
         var s = settings();
         var q = quote(input);
@@ -985,10 +989,10 @@ tr.clickable:hover td { background: var(--surface-2); }
         q.lines.forEach(function (l) { if (l.itemId) need[l.itemId] = (need[l.itemId] || 0) + l.qty; });
         Object.keys(need).forEach(function (id) {
           var it = find('items', id);
-          if (it.trackStock && !s.allowNegativeStock && it.stock < need[id]) fail('Not enough stock for ' + it.name + ' (available ' + it.stock + ')');
+          if (it.trackStock && !s.allowNegativeStock && !input.replay && it.stock < need[id]) fail('Not enough stock for ' + it.name + ' (available ' + it.stock + ')');
         });
 
-        var sale = Object.assign({ id: uid(), number: nextNumber(s.invoicePrefix || 'INV-'), date: isDate(input.date) ? input.date : today(), at: stamp(),
+        var sale = Object.assign({ id: newId(input.id), number: nextNumber(s.invoicePrefix || 'INV-'), date: isDate(input.date) ? input.date : today(), at: stamp(),
           customerId: cust ? cust.id : '', customerName: cust ? cust.name : (str(input.customerName) || 'Walk-in'),
           customerPhone: cust ? cust.phone : str(input.customerPhone),
           staffId: str(input.staffId), method: str(input.method) || 'Cash', notes: str(input.notes),
@@ -1035,13 +1039,14 @@ tr.clickable:hover td { background: var(--surface-2); }
     // ---------- Purchases ----------
     api.createPurchase = function (input) {
       input = input || {};
+      if (input.id && find('purchases', input.id)) return clone(find('purchases', input.id));
       return tx(function () {
         var s = settings();
         var p = preset();
         var sup = input.supplierId ? mustFind('suppliers', input.supplierId, 'Supplier') : null;
         var lines = (input.lines || []).filter(function (l) { return l && (l.itemId || str(l.name)) && num(l.qty) > 0; });
         if (!lines.length) fail('Add at least one item with quantity');
-        var pur = { id: uid(), number: nextNumber(s.purchasePrefix || 'PUR-'), date: isDate(input.date) ? input.date : today(), at: stamp(),
+        var pur = { id: newId(input.id), number: nextNumber(s.purchasePrefix || 'PUR-'), date: isDate(input.date) ? input.date : today(), at: stamp(),
           supplierId: sup ? sup.id : '', supplierName: sup ? sup.name : (str(input.supplierName) || 'Cash purchase'),
           billNo: str(input.billNo), notes: str(input.notes), method: str(input.method) || 'Cash', lines: [], subtotal: 0, tax: 0, total: 0 };
         lines.forEach(function (l) {
@@ -1334,6 +1339,37 @@ tr.clickable:hover td { background: var(--surface-2); }
       });
     };
 
+    // ---------- Offline sync ----------
+    // ops: [{opId, method, args}] recorded by a device while it was offline.
+    // Each op is applied once (op ids are remembered), in order. A business
+    // error (e.g. bill already cancelled on another phone) is reported back and
+    // not retried; anything else stops the batch so it can be retried later.
+    var SYNCABLE = ['setup', 'saveSettings', 'save', 'remove', 'createSale', 'voidSale', 'createPurchase', 'voidPurchase',
+      'adjustStock', 'recordPayment', 'setAppointmentStatus', 'billAppointment', 'importCSV', 'loadSamples'];
+    api.applyOps = function (ops) {
+      if (!Array.isArray(ops)) fail('ops must be a list');
+      if (!Array.isArray(db.meta.appliedOps)) db.meta.appliedOps = [];
+      var results = [];
+      for (var i = 0; i < ops.length; i++) {
+        var op = ops[i] || {};
+        if (!op.opId || SYNCABLE.indexOf(op.method) < 0) { results.push({ opId: op.opId, ok: false, error: 'Unsupported change ' + op.method }); continue; }
+        if (db.meta.appliedOps.indexOf(op.opId) >= 0) { results.push({ opId: op.opId, ok: true, duplicate: true }); continue; }
+        var res;
+        try { res = { opId: op.opId, ok: true, result: api[op.method].apply(null, op.args || []) }; }
+        catch (e) {
+          if (!e.userError) throw e;
+          res = { opId: op.opId, ok: false, error: e.message };
+        }
+        tx(function () {
+          db.meta.appliedOps.push(op.opId);
+          if (db.meta.appliedOps.length > 5000) db.meta.appliedOps = db.meta.appliedOps.slice(-5000);
+          changes.settings = true;
+        });
+        results.push(res);
+      }
+      return results;
+    };
+
     api.methods = function () { return Object.keys(api); };
 
     return api;
@@ -1418,23 +1454,47 @@ tr.clickable:hover td { background: var(--surface-2); }
   'use strict';
   var Engine = window.BizEngine, Industries = window.BizIndustries, AI = window.BizAI;
   var LS_DB = 'bizcore-db-v1', LS_PIN = 'bizcore-pin', LS_AIKEY = 'bizcore-gemini-key';
+  var LS_SERVER = 'bizcore-server-url', LS_KNOWN = 'bizcore-server-known', LS_CACHE = 'bizcore-cache-v1',
+    LS_OUTBOX = 'bizcore-outbox-v1', LS_PROBLEMS = 'bizcore-sync-problems';
   var embedded = (function () { try { return window.top !== window.self; } catch (e) { return true; } })();
+  var Cap = window.Capacitor;
+  var native = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
 
   // ---------------------------------------------------------------- storage
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
   function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  function lsJSON(k, d) { var r = lsGet(k); if (!r) return d; try { return JSON.parse(r); } catch (e) { return d; } }
 
-  var api = { mode: 'local', health: null, engine: null, storageOk: true };
+  /*
+   * Data layer.
+   *  mode 'local'  : no server. The engine runs here and saves to this browser.
+   *  mode 'remote' : a BizCore server is the shared source of truth. A full copy of
+   *                  its data is cached on the device. While offline (or while
+   *                  changes are still waiting), the engine runs on that copy and
+   *                  every change goes to an outbox that is uploaded and applied
+   *                  exactly once when the connection is back.
+   */
+  var api = { mode: 'local', online: true, health: null, engine: null, cache: null, storageOk: true, outbox: lsJSON(LS_OUTBOX, []), syncing: false };
+  var READS = ['info', 'list', 'get', 'findItemByCode', 'quote', 'ledger', 'dashboard', 'report', 'exportAll', 'exportCSV', 'methods'];
+  var SYNC_OPS = ['setup', 'saveSettings', 'save', 'remove', 'createSale', 'voidSale', 'createPurchase', 'voidPurchase',
+    'adjustStock', 'recordPayment', 'setAppointmentStatus', 'billAppointment', 'importCSV', 'loadSamples'];
+
+  function serverBase() {
+    var b = (lsGet(LS_SERVER) || '').trim();
+    if (!b) return '';
+    if (!/^https?:\/\//i.test(b)) b = 'https://' + b;
+    return b.replace(/\/+$/, '') + '/';
+  }
+  function apiUrl(path) { return serverBase() + path; }
+  function localId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
 
   function startLocal() {
-    var raw = lsGet(LS_DB), data = null;
-    if (raw) { try { data = JSON.parse(raw); } catch (e) { data = null; } }
     var store = {
-      data: data,
+      data: lsJSON(LS_DB, null),
       commit: function () {
         var ok = lsSet(LS_DB, JSON.stringify(store.data));
-        if (!ok && api.storageOk) { api.storageOk = false; toast('This browser is not saving data (private mode or storage full). Download a backup from Data.', true); }
+        if (!ok && api.storageOk) { api.storageOk = false; toast('This device is not saving data (private mode or storage full). Download a backup from Backup & data.', true); }
       }
     };
     api.engine = Engine.createEngine(store);
@@ -1442,28 +1502,186 @@ tr.clickable:hover td { background: var(--surface-2); }
     api.storageOk = lsSet('bizcore-probe', '1');
   }
 
+  // The cached copy of the server's data (used offline).
+  function openCache(data) {
+    var store = { data: data || lsJSON(LS_CACHE, null), commit: function () { saveCache(); } };
+    api.cache = Engine.createEngine(store);
+    api.cacheStore = store;
+  }
+  function saveCache() {
+    if (!api.cacheStore) return;
+    if (!lsSet(LS_CACHE, JSON.stringify(api.cacheStore.data)) && api.storageOk) {
+      api.storageOk = false; toast('Phone storage is full: the offline copy could not be saved.', true);
+    }
+  }
+  function saveOutbox() { lsSet(LS_OUTBOX, JSON.stringify(api.outbox)); }
+
+  function http(path, body, timeoutMs) {
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, timeoutMs || 15000);
+    return fetch(apiUrl(path), { method: body ? 'POST' : 'GET', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
+      headers: { 'Content-Type': 'application/json', 'x-app-pin': lsGet(LS_PIN) || '' }, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) {
+        clearTimeout(timer);
+        if (r.status === 401) { askPin(); var e = new Error('PIN required'); e.auth = true; throw e; }
+        return r.json().then(function (j) { if (!j.ok && r.status >= 500) { var se = new Error(j.error || 'Server error'); se.server = true; throw se; } return j; });
+      }, function (err) { clearTimeout(timer); var e = new Error('No connection to the shop server'); e.network = true; e.cause = err; throw e; });
+  }
+  function rpc(method, args) {
+    return http('api/rpc', { method: method, args: args }).then(function (j) {
+      if (!j.ok) { var e = new Error(j.error || 'Request failed'); e.userError = true; throw e; }
+      return j.result;
+    });
+  }
+
+  function runCache(method, args) {
+    if (!api.cache) throw new Error('No offline copy on this device yet. Connect to the internet once to download the data.');
+    return api.cache[method].apply(null, args);
+  }
+
+  // Give new records their final id on this device, so the same id is used when the change is uploaded.
+  function prepareArgs(method, args, replay) {
+    args = JSON.parse(JSON.stringify(args));
+    if (method === 'save' && args[1] && !args[1].id) args[1].id = localId();
+    if ((method === 'createSale' || method === 'createPurchase') && args[0]) { if (!args[0].id) args[0].id = localId(); if (replay) args[0].replay = true; }
+    if (method === 'billAppointment') { args[1] = args[1] || {}; if (!args[1].id) args[1].id = localId(); if (replay) args[1].replay = true; }
+    return args;
+  }
+  function queueOp(method, args, opId) {
+    var a = prepareArgs(method, args, true);
+    var result = runCache(method, a);            // validates and updates the offline copy
+    api.outbox.push({ opId: opId || localId(), method: method, args: a, at: new Date().toISOString() });
+    saveOutbox();
+    updateSyncBadge();
+    return result;
+  }
+
   api.call = function (method) {
     var args = Array.prototype.slice.call(arguments, 1);
-    if (api.mode === 'local') {
-      return new Promise(function (resolve) { resolve(api.engine[method].apply(null, args)); });
+    if (api.mode === 'local') return new Promise(function (resolve) { resolve(api.engine[method].apply(null, args)); });
+    var isRead = READS.indexOf(method) >= 0;
+    var useCache = !api.online || api.outbox.length > 0;
+    if (!useCache && SYNC_OPS.indexOf(method) >= 0) {
+      // Online change: sent with an operation id so a retry after a dropped connection is never applied twice.
+      var op = { opId: localId(), method: method, args: prepareArgs(method, args, false) };
+      return rpc('applyOps', [[op]]).then(function (res) {
+        var r = res[0];
+        if (!r.ok) { var ue = new Error(r.error); ue.userError = true; throw ue; }
+        scheduleRefresh(1500);
+        return r.result;
+      }, function (e) {
+        if (!e.network) throw e;
+        goOffline();
+        var out = queueOp(method, op.args, op.opId);
+        return out;
+      });
     }
-    return fetch('api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-app-pin': lsGet(LS_PIN) || '' },
-      body: JSON.stringify({ method: method, args: args }) })
-      .then(function (r) {
-        if (r.status === 401) { askPin(); throw new Error('PIN required'); }
-        return r.json();
-      })
-      .then(function (j) { if (!j.ok) throw new Error(j.error || 'Request failed'); return j.result; });
+    if (!useCache) {
+      return rpc(method, args).then(function (res) {
+        if (!isRead) scheduleRefresh(1500);
+        return res;
+      }, function (e) {
+        if (!e.network) throw e;
+        goOffline();
+        return api.call.apply(null, [method].concat(args));
+      });
+    }
+    return new Promise(function (resolve) {
+      if (isRead) return resolve(runCache(method, args));
+      if (SYNC_OPS.indexOf(method) < 0) throw new Error('This needs a connection to the shop server.');
+      resolve(queueOp(method, args));
+      if (api.online) sync();
+    });
   };
 
+  // ---- connection state, sync and refresh ----
+  var probeTimer = null, refreshTimer = null;
+  function goOffline() {
+    if (!api.online) return;
+    api.online = false;
+    updateSyncBadge();
+    toast('Offline. Keep working: changes are saved on this device and will sync automatically.');
+    if (!probeTimer) probeTimer = setInterval(probe, 15000);
+  }
+  function goOnline() {
+    if (probeTimer) { clearInterval(probeTimer); probeTimer = null; }
+    var was = api.online;
+    api.online = true;
+    updateSyncBadge();
+    return sync().then(function () { if (!was) toast('Back online. Everything is synced.'); });
+  }
+  function probe() {
+    return checkHealth().then(function (ok) { if (ok) return goOnline(); });
+  }
+  function checkHealth() {
+    return http('api/health', null, 5000).then(function (j) {
+      if (j && j.app === 'BizCore') { api.health = j; return true; }
+      return false;
+    }).catch(function () { return false; });
+  }
+  function sync() {
+    if (api.mode !== 'remote' || api.syncing) return Promise.resolve();
+    if (!api.outbox.length) return refreshCache();
+    api.syncing = true;
+    updateSyncBadge();
+    var batch = api.outbox.slice(0, 100);
+    return rpc('applyOps', [batch]).then(function (results) {
+      var done = {};
+      var problems = lsJSON(LS_PROBLEMS, []);
+      results.forEach(function (r) {
+        done[r.opId] = true;
+        if (!r.ok) {
+          var op = batch.filter(function (b) { return b.opId === r.opId; })[0] || {};
+          problems.unshift({ at: new Date().toISOString(), method: op.method, error: r.error });
+          toast('A change made offline could not be applied: ' + r.error, true);
+        }
+      });
+      lsSet(LS_PROBLEMS, JSON.stringify(problems.slice(0, 50)));
+      api.outbox = api.outbox.filter(function (o) { return !done[o.opId]; });
+      saveOutbox();
+      api.syncing = false;
+      if (api.outbox.length) return sync();
+      return refreshCache(true);
+    }, function (e) {
+      api.syncing = false;
+      if (e.network) goOffline();
+      updateSyncBadge();
+    });
+  }
+  // Download a fresh copy of the shared data for offline use.
+  function refreshCache(rerender) {
+    if (api.mode !== 'remote' || !api.online || api.outbox.length) return Promise.resolve();
+    return rpc('exportAll', []).then(function (db) {
+      if (api.outbox.length) return;          // something was queued meanwhile; next sync refreshes
+      openCache(db);
+      saveCache();
+      api.lastRefresh = new Date();
+      updateSyncBadge();
+      if (rerender && S && S.setupDone && $('#view')) refreshInfo().then(render);
+    }).catch(function (e) { if (e.network) goOffline(); });
+  }
+  function scheduleRefresh(ms) { clearTimeout(refreshTimer); refreshTimer = setTimeout(function () { refreshCache(); }, ms); }
+
+  function syncText() {
+    if (api.mode === 'local') return { cls: 'ink', text: native ? 'Saved on this phone' : 'This device only' };
+    if (!api.online) return { cls: 'warn', text: 'Offline' + (api.outbox.length ? ' · ' + api.outbox.length + ' to sync' : ' · using saved copy') };
+    if (api.outbox.length) return { cls: 'warn', text: 'Syncing ' + api.outbox.length + '…' };
+    return { cls: 'good', text: 'Online · synced' };
+  }
+  function updateSyncBadge() {
+    var el = document.getElementById('sync-pill');
+    if (!el) return;
+    var t = syncText();
+    el.className = 'pill ' + t.cls; el.textContent = t.text;
+  }
+
   function detectMode() {
-    if (!/^https?:$/.test(location.protocol)) return Promise.resolve(false);
-    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 3500);
-    return fetch('api/health', { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) { clearTimeout(timer); if (j && j.app === 'BizCore') { api.health = j; return true; } return false; })
-      .catch(function () { clearTimeout(timer); return false; });
+    var known = lsGet(LS_KNOWN) === (serverBase() || location.origin);
+    if (!serverBase() && (native || !/^https?:$/.test(location.protocol))) return Promise.resolve('local');
+    return checkHealth().then(function (ok) {
+      if (ok) { lsSet(LS_KNOWN, serverBase() || location.origin); return 'online'; }
+      return known ? 'offline' : 'local';
+    });
   }
 
   // ---------------------------------------------------------------- helpers
@@ -1568,7 +1786,11 @@ tr.clickable:hover td { background: var(--surface-2); }
     m.el.id = 'pin-modal';
   }
   function download(name, text, type) {
-    if (embedded) {
+    if (native && !download.fallback) {
+      nativeShareFile(name, text).catch(function () { download.fallback = true; download(name, text, type); download.fallback = false; });
+      return;
+    }
+    if (embedded || native) {
       // Downloads are blocked inside embedded viewers: show the text so it can be copied.
       modal({ title: name, wide: true, submitText: null, cancelText: 'Close',
         body: '<p class="muted">Downloads are blocked here. Copy the text below and save it as <b>' + esc(name) + '</b>.</p><textarea id="dl-text" style="min-height:300px" readonly>' + esc(text) + '</textarea>',
@@ -1621,12 +1843,12 @@ tr.clickable:hover td { background: var(--surface-2); }
       var t = typeof n.text === 'function' ? n.text() : n.text;
       return '<a href="#' + n.key + '" data-nav="' + n.key + '"><span class="ico" aria-hidden="true">' + n.icon + '</span>' + esc(t) + '</a>';
     }).join('');
-    var modeTxt = api.mode === 'remote' ? 'Shared · synced to server' : 'This device only';
+    var st = syncText();
     document.getElementById('app').innerHTML =
       '<div class="shell"><aside class="side" id="side"><div class="brand"><div class="brand-mark" aria-hidden="true">' + esc((S.businessName || 'B').trim().charAt(0).toUpperCase()) + '</div>' +
       '<div style="min-width:0"><div class="brand-name">' + esc(S.businessName) + '</div><div class="brand-sub">' + esc(P.icon + ' ' + P.name) + '</div></div></div>' +
       '<nav class="nav">' + nav + '</nav>' +
-      '<div class="side-foot"><span><span class="pill ' + (api.mode === 'remote' ? 'good' : 'ink') + '">' + esc(modeTxt) + '</span></span><span>BizCore · ' + esc(today()) + '</span></div></aside>' +
+      '<div class="side-foot"><span><a href="#data" style="text-decoration:none"><span id="sync-pill" class="pill ' + st.cls + '">' + esc(st.text) + '</span></a></span><span>BizCore · ' + esc(today()) + '</span></div></aside>' +
       '<div class="scrim" id="scrim"></div>' +
       '<div class="main"><header class="topbar"><button class="btn ghost menu-btn" id="menu" aria-label="Menu">☰</button><h1 id="page-title"></h1>' +
       '<div class="row" id="top-actions"></div>' + (has('pos') ? '<a class="btn primary" href="#pos">＋ ' + esc(label('sale')) + '</a>' : '') + '</header>' +
@@ -1647,8 +1869,13 @@ tr.clickable:hover td { background: var(--surface-2); }
     if (!known) r = 'dashboard';
     $$('[data-nav]').forEach(function (a) { a.classList.toggle('active', a.getAttribute('data-nav') === r); });
     $('#top-actions').innerHTML = '';
-    var view = $('#view');
+    // A fresh container per page: a slow page that finishes loading after the user has
+    // moved on writes into its own detached container and cannot overwrite the new page.
+    var old = $('#view');
+    var view = document.createElement('main');
+    view.className = 'content'; view.id = 'view';
     view.innerHTML = '<div class="muted">Loading…</div>';
+    old.replaceWith(view);
     Promise.resolve(PAGES[r](view)).catch(function (e) { view.innerHTML = '<div class="banner">' + esc(e.message) + '</div>'; });
   }
 
@@ -1671,7 +1898,10 @@ tr.clickable:hover td { background: var(--surface-2); }
       '<label class="field wide">Address<input name="address" id="setup-addr" value="' + esc(S.address) + '"></label></div>' +
       '<label class="check"><input type="checkbox" name="loadSamples" id="setup-samples" checked> Add a few example items so I can try it out (delete them any time)</label>' +
       '<div class="row"><button class="btn primary big" type="submit" style="width:auto">Start using BizCore</button>' +
-      '<span class="muted">' + (api.mode === 'remote' ? 'Data is saved on your server and shared by all devices.' : 'Data is saved in this browser. Use Backup to move it.') + '</span></div></form></div><div class="toasts" id="toasts"></div>';
+      '<span class="muted">' + (api.mode === 'remote' ? 'Data is saved on your server and shared by all devices.' : (native ? 'Data is saved on this phone.' : 'Data is saved in this browser.') + ' Use Backup to move it.') + '</span></div></form>' +
+      (api.mode === 'local' ? '<div class="panel row"><div style="flex:1;min-width:220px"><b>Already have a shop server?</b><div class="muted">Connect this ' + (native ? 'phone' : 'device') + ' to it to share bills and stock with your other devices.</div></div><button type="button" class="btn" id="setup-connect">Connect to shop server</button></div>' : '') +
+      '</div><div class="toasts" id="toasts"></div>';
+    var sc = $('#setup-connect'); if (sc) sc.onclick = connectDialog;
     $$('[data-ind]').forEach(function (b) {
       b.onclick = function () { chosen = b.getAttribute('data-ind'); $$('[data-ind]').forEach(function (x) { x.classList.toggle('on', x === b); }); };
     });
@@ -1890,7 +2120,7 @@ tr.clickable:hover td { background: var(--surface-2); }
     api.call('get', 'sales', id).then(function (s) {
       if (!s) return toast('Not found', true);
       var foot = '';
-      if (!embedded) foot += '<button type="button" class="btn" id="rc-print">Print</button>';
+      if (!embedded && !native) foot += '<button type="button" class="btn" id="rc-print">Print</button>';
       foot += '<a class="btn" target="_blank" rel="noopener" href="' + esc(waLink(s.customerPhone, saleText(s))) + '">WhatsApp</a>';
       foot += '<button type="button" class="btn" id="rc-copy">Copy text</button>';
       if (s.status !== 'void') foot += '<button type="button" class="btn danger" id="rc-void">Cancel ' + esc(label('sale').toLowerCase()) + '</button>';
@@ -2206,8 +2436,8 @@ tr.clickable:hover td { background: var(--surface-2); }
   }
   function readBillAI(base64, mimeType) {
     if (api.mode === 'remote') {
-      return fetch('api/ai/read-bill', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-app-pin': lsGet(LS_PIN) || '' }, body: JSON.stringify({ base64: base64, mimeType: mimeType }) })
-        .then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw new Error(j.error); return j.result; });
+      if (!api.online) return Promise.reject(new Error('Reading bills with AI needs an internet connection.'));
+      return http('api/ai/read-bill', { base64: base64, mimeType: mimeType }, 60000).then(function (j) { if (!j.ok) throw new Error(j.error); return j.result; });
     }
     var key = lsGet(LS_AIKEY);
     if (!key) return Promise.reject(new Error('Add a Google Gemini API key in Settings → AI bill reading to use this.'));
@@ -2478,12 +2708,14 @@ tr.clickable:hover td { background: var(--surface-2); }
       '<div class="panel stack"><h2>Where your data lives</h2>' +
       (api.mode === 'remote' ? '<p>Shared mode: data is saved on your BizCore server' + (api.health && api.health.sync && api.health.sync.enabled ? ' and copied to Supabase (' + (api.health.sync.pending ? api.health.sync.pending + ' changes waiting to sync' : 'up to date') + ')' : '') + '. Every phone or computer that opens this address sees the same data. The server also keeps a daily backup copy for 14 days.</p>'
         : '<p>This-device mode: data is saved in this browser only. Download a backup regularly, or run the BizCore server to share data across devices.</p>' + (api.storageOk ? '' : '<p class="banner">This browser is not saving data right now (private window or storage blocked).</p>')) +
-      '<div class="row"><button type="button" class="btn primary" id="dt-backup">Download full backup</button><button type="button" class="btn" id="dt-restore">Restore from backup</button></div></div>' +
+      '<div class="row"><button type="button" class="btn primary" id="dt-backup">' + (native ? 'Save / share full backup' : 'Download full backup') + '</button><button type="button" class="btn" id="dt-restore">Restore from backup</button></div></div>' +
+      connectionPanel() +
       '<div class="panel stack"><h2>Spreadsheets (CSV)</h2><p class="muted">Open these in Excel or Google Sheets.</p><div class="chips">' +
       exportables.map(function (c) { return '<button type="button" class="chip" data-csv="' + c + '">' + esc(names[c] || (c.charAt(0).toUpperCase() + c.slice(1))) + '</button>'; }).join('') + '</div>' +
       '<div class="row"><button type="button" class="btn" data-imp="items">Import ' + esc(label('items').toLowerCase()) + '</button><button type="button" class="btn" data-imp="customers">Import ' + esc(label('customers').toLowerCase()) + '</button><button type="button" class="btn" data-imp="suppliers">Import suppliers</button></div></div>' +
       '<div class="panel stack"><h2>Example data</h2><p class="muted">Adds a few sample ' + esc(label('items').toLowerCase()) + ', a customer, a supplier and a staff member for this business type.</p><div><button type="button" class="btn" id="dt-samples">Add example data</button></div></div>' +
       '<div class="panel stack"><h2>Start over</h2><p class="muted">Deletes every record. Download a backup first.</p><div class="row"><button type="button" class="btn danger" id="dt-reset">Erase all data</button></div></div></div>';
+    bindConnectionPanel(view);
     $('#dt-backup').onclick = function () { api.call('exportAll').then(function (db) { download('bizcore-backup-' + today() + '.json', JSON.stringify(db), 'application/json'); }).catch(fail); };
     $('#dt-restore').onclick = function () {
       modal({ title: 'Restore from backup', wide: true, submitText: 'Restore', danger: true,
@@ -2504,19 +2736,117 @@ tr.clickable:hover td { background: var(--surface-2); }
   };
 
   // ---------------------------------------------------------------- boot
+  // ---------------------------------------------------------------- server connection UI
+  function connectDialog() {
+    modal({ title: 'Connect to shop server', body: '<p class="muted">Enter the address of your BizCore server (for example https://bizcore-xxxx.onrender.com) and its PIN if it has one. Data already saved on this ' + (native ? 'phone' : 'device') + ' is not copied to the server; to move it, use Backup here and Restore on the server.</p>' +
+      '<div class="form-grid"><label class="field wide">Server address<input name="url" id="cn-url" type="url" inputmode="url" autocapitalize="off" placeholder="https://" value="' + esc(lsGet(LS_SERVER) || '') + '"></label>' +
+      '<label class="field">PIN (if set)<input name="pin" id="cn-pin" type="password" inputmode="numeric" value="' + esc(lsGet(LS_PIN) || '') + '"></label></div>',
+      submitText: 'Connect',
+      onSubmit: function (d) {
+        var url = d.url.trim(); if (!url) throw new Error('Enter the server address');
+        var prev = lsGet(LS_SERVER), prevPin = lsGet(LS_PIN);
+        lsSet(LS_SERVER, url); lsSet(LS_PIN, d.pin || '');
+        return checkHealth().then(function (ok) {
+          if (!ok) { if (prev) lsSet(LS_SERVER, prev); else lsDel(LS_SERVER); if (prevPin !== null) lsSet(LS_PIN, prevPin); throw new Error('Could not reach a BizCore server at that address. Check the address and the internet connection.'); }
+          return rpc('info', []).then(function () {
+            lsSet(LS_KNOWN, serverBase()); lsDel(LS_CACHE); lsDel(LS_OUTBOX);
+            toast('Connected'); setTimeout(function () { location.hash = 'dashboard'; location.reload(); }, 300);
+          });
+        });
+      } });
+  }
+  function connectionPanel() {
+    var problems = lsJSON(LS_PROBLEMS, []);
+    var h = '<div class="panel stack"><h2>Shop server & sync</h2>';
+    if (api.mode === 'remote') {
+      var t = syncText();
+      h += '<p>Server: <b class="mono">' + esc(serverBase() || location.origin) + '</b> <span class="pill ' + t.cls + '">' + esc(t.text) + '</span></p>' +
+        '<p class="muted">A copy of the shop data is kept on this device, so billing keeps working without internet. Changes made offline upload automatically when the connection returns.' +
+        (api.lastRefresh ? ' Copy last updated ' + esc(api.lastRefresh.toLocaleTimeString()) + '.' : '') + '</p>' +
+        (problems.length ? '<details><summary>' + problems.length + ' offline change(s) could not be applied</summary><ul>' + problems.slice(0, 10).map(function (p) { return '<li>' + esc(p.at.slice(0, 16).replace('T', ' ') + ' · ' + p.method + ': ' + p.error) + '</li>'; }).join('') + '</ul><button type="button" class="btn sm" id="cn-clearp">Clear list</button></details>' : '') +
+        '<div class="row"><button type="button" class="btn" id="cn-sync">Sync now</button>' + (serverBase() ? '<button type="button" class="btn danger" id="cn-off">Disconnect</button>' : '') + '</div>';
+    } else {
+      h += '<p class="muted">Not connected. Connect to a BizCore server to share data between phones and computers.</p><div><button type="button" class="btn" id="cn-on">Connect to shop server</button></div>';
+    }
+    return h + '</div>';
+  }
+  function bindConnectionPanel(view) {
+    var b;
+    if ((b = $('#cn-on', view))) b.onclick = connectDialog;
+    if ((b = $('#cn-sync', view))) b.onclick = function () {
+      probe().then(function () { return api.online ? sync() : null; }).then(function () { toast(api.online ? (api.outbox.length ? 'Still syncing…' : 'Synced') : 'Still offline', !api.online); render(); });
+    };
+    if ((b = $('#cn-clearp', view))) b.onclick = function () { lsDel(LS_PROBLEMS); render(); };
+    if ((b = $('#cn-off', view))) b.onclick = function () {
+      var warn = api.outbox.length ? ' ' + api.outbox.length + ' change(s) have not been uploaded yet and will be lost.' : '';
+      confirmBox('Disconnect this device from the server? It goes back to its own separate data.' + warn, 'Disconnect', true).then(function (ok) {
+        if (!ok) return;
+        [LS_SERVER, LS_KNOWN, LS_CACHE, LS_OUTBOX, LS_PROBLEMS].forEach(lsDel);
+        location.hash = 'dashboard'; location.reload();
+      });
+    };
+  }
+
+  // ---------------------------------------------------------------- platform glue
+  function registerServiceWorker() {
+    if (native || embedded || !('serviceWorker' in navigator) || !/^https:$|^http:$/.test(location.protocol)) return;
+    if (location.protocol === 'http:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      // Ask the worker to keep a copy of everything this page loaded, so it opens offline next time.
+      var urls = [location.href.split('#')[0]];
+      $$('script[src], link[rel=stylesheet][href], link[rel=manifest][href]').forEach(function (el) { urls.push(el.src || el.href); });
+      var send = function (w) { if (w) w.postMessage({ type: 'cache', urls: urls }); };
+      send(reg.active || reg.waiting || reg.installing);
+      navigator.serviceWorker.ready.then(function (r) { send(r.active); });
+    }).catch(function () { /* offline support is a bonus; the app works without it */ });
+  }
+  function nativeCall(plugin, method, opts) {
+    if (Cap && Cap.nativePromise) return Cap.nativePromise(plugin, method, opts);
+    var p = Cap && Cap.Plugins && Cap.Plugins[plugin];
+    if (p && p[method]) return p[method](opts);
+    return Promise.reject(new Error(plugin + ' is not available'));
+  }
+  function nativeShareFile(name, text) {
+    return nativeCall('Filesystem', 'writeFile', { path: name, data: text, directory: 'CACHE', encoding: 'utf8' })
+      .then(function (r) { return nativeCall('Share', 'share', { title: name, url: r.uri, dialogTitle: 'Save or send ' + name }); });
+  }
+
   function boot() {
-    detectMode().then(function (remote) {
-      if (remote) api.mode = 'remote'; else startLocal();
-      return refreshInfo();
+    if (native) {
+      document.documentElement.classList.add('native');
+      // Open WhatsApp and other web links outside the app.
+      document.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[target=_blank]');
+        if (a && /^https?:/i.test(a.href)) { e.preventDefault(); location.href = a.href; }
+      });
+    }
+    registerServiceWorker();
+    detectMode().then(function (m) {
+      if (m === 'local') { startLocal(); return refreshInfo(); }
+      api.mode = 'remote';
+      openCache();
+      if (m === 'offline') {
+        api.online = false;
+        if (!api.cacheStore.data || !api.cacheStore.data.settings || !api.cacheStore.data.settings.setupDone) {
+          throw new Error('No internet, and this device has no saved copy of the shop data yet. Connect once to download it.');
+        }
+        probeTimer = setInterval(probe, 15000);
+        return refreshInfo();
+      }
+      return refreshInfo().then(function () { sync(); });
     }).then(function () {
       if (S.setupDone) shell();
       render();
       window.addEventListener('hashchange', render);
+      window.addEventListener('online', function () { if (api.mode === 'remote') probe(); });
+      window.addEventListener('offline', function () { if (api.mode === 'remote') goOffline(); });
+      setInterval(function () { if (api.mode === 'remote' && api.online && !document.hidden) sync(); }, 120000);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden && api.mode === 'remote') (api.online ? sync() : probe()); });
       document.addEventListener('keydown', function (e) {
         if (e.key === 'F2' && has('pos')) { e.preventDefault(); go('pos'); }
       });
     }).catch(function (e) {
-      document.getElementById('app').innerHTML = '<div class="setup"><div class="banner">Could not start: ' + esc(e.message) + '</div><div class="toasts" id="toasts"></div></div>';
+      document.getElementById('app').innerHTML = '<div class="setup"><div class="banner">' + esc(e.message) + '</div><div class="row"><button class="btn" type="button" onclick="location.reload()">Try again</button></div><div class="toasts" id="toasts"></div></div>';
       if (/PIN/.test(e.message)) askPin();
     });
   }

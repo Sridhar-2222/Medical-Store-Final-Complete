@@ -102,6 +102,15 @@ async function createServer(options = {}) {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const p = decodeURIComponent(url.pathname);
+    if (p.startsWith('/api/') || p === '/health') {
+      // The Android app runs from its own origin, so the API must allow cross-origin calls.
+      // Data stays protected by APP_PIN, which is sent in a header, not a cookie.
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-app-pin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Max-Age', '86400');
+      if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+    }
     try {
       if (p === '/api/health' || p === '/health') {
         return send(res, 200, { ok: true, app: 'BizCore', mode: 'server', pinRequired: !!pin, ai: !!aiKey,

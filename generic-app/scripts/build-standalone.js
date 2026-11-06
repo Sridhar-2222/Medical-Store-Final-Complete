@@ -19,4 +19,7 @@ fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/bizcore-embed.html'), head + '\n' + body);
 fs.writeFileSync(path.join(root, 'dist/bizcore-standalone.html'),
   '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' + head + '\n</head>\n<body>\n' + body + '</body>\n</html>\n');
-console.log('Built dist/bizcore-standalone.html and dist/bizcore-embed.html');
+fs.copyFileSync(path.join(root, 'public/sw.js'), path.join(root, 'dist/sw.js'));
+fs.copyFileSync(path.join(root, 'public/icon.svg'), path.join(root, 'dist/icon.svg'));
+fs.writeFileSync(path.join(root, 'dist/index.html'), fs.readFileSync(path.join(root, 'dist/bizcore-standalone.html')));
+console.log('Built dist/ (bizcore-standalone.html, index.html, sw.js, bizcore-embed.html)');
