@@ -571,6 +571,8 @@
       if (input.departmentId && !dep) fail('Department not found');
       e.type = type;
       e.date = isDate(input.date) ? input.date : ctx.today();
+      // A day of slack, so a phone and an office computer in different time zones never refuse each other's entries.
+      if (e.date > addDays(ctx.today(), 1) && !(type === 'expense' && input.kind === 'fixed')) fail('That date is in the future. Check the date.');
       e.time = /^\d{1,2}:\d{2}$/.test(input.time || '') ? input.time : '';
       e.half = input.half === 'first' || input.half === 'second' ? input.half : halfOf(e.time, s().halfDaySplit);
       e.departmentId = dep ? dep.id : '';
@@ -667,6 +669,7 @@
     api.saveDailySheet = function (input) {
       input = input || {};
       if (!isDate(input.date)) fail('Pick a date');
+      if (input.date > addDays(ctx.today(), 1)) fail('That date is in the future. Check the date.');
       var half = input.half === 'first' || input.half === 'second' ? input.half : '';
       return ctx.tx(function () {
         var count = 0;
@@ -933,7 +936,7 @@
     // Who needs a message: due dates from today-30 to today+days, plus who has not been contacted
     api.vaultDue = function (q) {
       q = q || {};
-      var t = ctx.today(), until = addDays(t, q.days === undefined ? 7 : +q.days), since = addDays(t, -30);
+      var t = ctx.today(), until = addDays(t, q.days === undefined ? 7 : +q.days), since = '0000-00-00';   // overdue ones stay until marked done
       var labels = {}; ctx.preset().review.vault.records.forEach(function (r) { labels[r.key] = r; });
       return db().vaultRecords.filter(function (r) { return r.dueDate && !r.done && r.dueDate >= since && r.dueDate <= until; }).map(function (r) {
         var c = ctx.find('customers', r.customerId) || {};

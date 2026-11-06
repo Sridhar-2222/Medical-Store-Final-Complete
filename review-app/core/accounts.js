@@ -151,6 +151,7 @@
         var amt = r2(num(input.amount));
         if (!(amt > 0)) fail('Enter an amount more than zero');
         if (!isDate(input.date)) fail('Choose the date');
+        if (input.date > R.addDays(ctx.today(), 1)) fail('That date is in the future. Check the date.');
         var a = input.id ? ctx.find('advances', input.id) : null;
         if (!a) { a = { id: ctx.newId(input.id), createdAt: ctx.stamp() }; db().advances.push(a); }
         a.staffId = st.id; a.staffName = st.name; a.kind = kind; a.amount = amt; a.date = input.date;
@@ -184,6 +185,7 @@
       return ctx.tx(function () {
         var st = ctx.mustFind('staff', input.staffId, 'Staff member');
         if (!isDate(input.date)) fail('Choose the date');
+        if (input.date > R.addDays(ctx.today(), 1)) fail('That date is in the future. Check the date.');
         var old = db().attendance.filter(function (x) { return x.staffId === st.id && x.date === input.date; });
         old.forEach(function (x) { db().attendance = db().attendance.filter(function (y) { return y.id !== x.id; }); ctx.drop('attendance', x.id); });
         if (!input.status) return { cleared: true };           // back to "from bills"

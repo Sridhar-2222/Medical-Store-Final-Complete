@@ -271,3 +271,24 @@ test('advances and attendance sync like other changes', () => {
   assert.ok(b.applyOps(ops).every((r) => r.duplicate));
   assert.equal(b.advanceBalances().outstanding, 500); assert.equal(b.attendanceDay(TODAY)[0].status, 'present');
 });
+
+test('future dates are refused (one day of slack for time zones); fixed bills may be for next month', () => {
+  const a = fresh();
+  const st = a.saveStaff({ name: 'Ravi', salary: 1 });
+  assert.throws(() => a.saveEntry({ type: 'purchase', amount: 5, date: '2027-01-01' }), /future/);
+  assert.throws(() => a.saveAdvance({ staffId: st.id, amount: 5, date: '2027-01-01' }), /future/);
+  assert.throws(() => a.markAttendance({ staffId: st.id, date: '2027-01-01', status: 'present' }), /future/);
+  assert.throws(() => a.saveDailySheet({ date: '2027-01-01', rows: [] }), /future/);
+  assert.ok(a.saveEntry({ type: 'purchase', amount: 5, date: R.addDays(TODAY, 1) }));
+  assert.ok(a.saveEntry({ type: 'expense', kind: 'fixed', category: 'Rent', amount: 5, month: '2026-12', date: '2026-12-01' }));
+});
+
+test('overdue customer reminders stay listed until marked done', () => {
+  const a = fresh('pharmacy');
+  const c = a.saveCustomer({ name: 'Asha', phone: '9876500011' });
+  const kind = a.info().preset.review.vault.records[0].key;
+  const r = a.saveVaultRecord({ customerId: c.id, kind, title: 'Refill', dueDate: R.addDays(TODAY, -60) });
+  assert.ok(a.vaultDue({ days: 7 }).some((x) => x.record.id === r.id && x.overdue));
+  a.saveVaultRecord(Object.assign({}, r, { done: true }));
+  assert.ok(!a.vaultDue({ days: 7 }).some((x) => x.record.id === r.id));
+});

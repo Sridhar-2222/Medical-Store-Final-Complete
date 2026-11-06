@@ -172,6 +172,8 @@
     $('#sa-half', el).onchange = function (e) { A.go('sale-add', { dep: d.id, date: A.val('sa-date', el), half: e.target.value }); };
     $('#sa-save', el).onclick = function () {
       var date2 = A.val('sa-date', el), half2 = A.val('sa-half', el);
+      var had = F.some(function (f) { return row[f[0]]; }), now = F.some(function (f) { return A.val('sa-' + f[0], el) !== ''; });
+      if (!had && !now) { A.toast('Enter at least one amount', true); return; }
       var ok = A.act(function () {
         var r = api.getDailySheet(date2, half2).filter(function (x) { return x.departmentId === d.id; })[0] || { departmentId: d.id };
         F.forEach(function (f) { r[f[0]] = A.val('sa-' + f[0], el); });
@@ -326,6 +328,7 @@
       }).join('') + '</tbody></table></div></div>' : A.empty('No counts yet', ''));
     $('#ch-save', el).onclick = function () {
       var date = A.val('ch-date', el);
+      if (A.val('ch-count', el) === '' && A.val('ch-dep', el) === '' && row.cashInHand === undefined && !row.deposit) { A.toast('Enter the cash counted', true); return; }
       if (A.act(function () { var r = api.getDailySheet(date, '').filter(function (x) { return x.departmentId === d0.id; })[0] || { departmentId: d0.id }; r.cashInHand = A.val('ch-count', el); r.deposit = A.val('ch-dep', el); return api.saveDailySheet({ date: date, half: '', rows: [r] }); }, 'Saved')) A.render();
     };
   } });

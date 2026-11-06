@@ -81,6 +81,7 @@
   A.screen('record', { title: 'Vault record', crumb: 'Customer vault', back: 'cust-list', render: function (el, st) {
     if (!st || !st.id) { A.go('cust-list'); return; }
     var c = api.get('customers', st.id), r = st.recordId ? api.get('vaultRecords', st.recordId) : null, kinds = vcfg().records;
+    if (!c) { A.go('cust-list'); return; }
     var kind = r ? r.kind : kinds[0].key;
     el.innerHTML = '<div class="card"><p class="muted small">' + esc(c.name) + ' · ' + esc(vaultTitle()) + ' vault</p>' +
       A.field('Kind', A.seg('vr-kind', kinds.map(function (k) { return [k.key, k.label]; }).concat([['document', 'Document'], ['note', 'Note']]), kind)) +
