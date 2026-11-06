@@ -156,7 +156,7 @@ host the included `sw.js` lets it reopen offline.
 
 ## Android app (APK)
 
-A ready-to-install APK is at `android-app/release/BizCore.apk`.
+A ready-to-install APK is at `android-app/release/Fingertrip-biz-AI.apk` (app now named Fingertrip.biz AI).
 
 **Install on a phone:** copy the APK to the phone (WhatsApp it to yourself, Google Drive,
 or a USB cable), tap it, and allow "Install unknown apps" when Android asks.

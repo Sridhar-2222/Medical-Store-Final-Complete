@@ -121,7 +121,7 @@ cd android && ./gradlew assembleRelease
 # then sign with v1+v2+v3 (see the commit "rebuild APK 1.0.1 signed with v1+v2+v3"):
 apksigner sign --ks ../keystore/bizcore-release.jks --ks-key-alias bizcore \
   --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
-  --out ../release/BizCore.apk app/build/outputs/apk/release/app-release.apk
+  --out ../release/Fingertrip-biz-AI.apk app/build/outputs/apk/release/app-release.apk
 ```
 Bump `versionCode` / `versionName` in `android/app/build.gradle` for each release.
 
