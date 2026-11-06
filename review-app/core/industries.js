@@ -141,7 +141,7 @@
       appointmentLabel: 'Appointment'
     },
     apparel: {
-      name: 'Clothing / Footwear / Fashion', icon: '👗',
+      name: 'Garments / Clothing / Footwear', icon: '👗',
       labels: { item: 'Product', items: 'Products', customer: 'Customer', customers: 'Customers', sale: 'Invoice' },
       modules: withModules([]),
       flags: { batch: false, expiry: false, services: false },

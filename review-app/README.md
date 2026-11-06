@@ -11,7 +11,8 @@ Android app id `biz.fingertrip.ai`. Play Store kit: `../play-store/`.
 | **Store** | Store categories → purchase bills (photo or file, no item-level stock), this week vs 4-week average |
 | **Reports** | Daily summary (share on WhatsApp) · Profit & Loss · Alerts · Sales report · Spending report · Spot check · Ask AI (OpenAI or Gemini) |
 | **Staff** | Attendance (present automatically from bills each person writes; owner marks P / ½ / A / L) · Staff advances (given, recovered from salary or cash, balance per person) · Staff list with salary and ID / documents · salaries per month |
-| **Business setup** | Business details & vault title · Sales departments · Store categories · Usual fixed costs · Videos (YouTube, owner & customers) · AI · Office system · Backup · Guide |
+| **Work areas** (named per business, e.g. *Rooms & guests*) | Daily counts that fit the business (hotel: rooms available / sold, check-ins, guests; garments: pieces, alterations in / out; restaurant: diners, tables, takeaway, delivery…), key numbers worked out from them (occupancy, average room rate, pending alterations, average bill per diner…), register photo |
+| **Master** (no login) | Features: show / hide / rename every header and feature · Work areas: change what is counted · Example lines · then Business details & vault title · Sales departments · Store categories · Usual fixed costs · Videos (YouTube, owner & customers) · AI · Office system · Backup · Guide |
 
 📷 **Photo** and 📎 **File** sit inside every page where a bill or account is updated, and every feature list starts with an **Upload bill** button. Examples are kept to one short "e.g." line per feature. Photos are
 read on the phone (offline): bills → supplier, bill no, date, total; day-end report → sales, cash,
@@ -30,7 +31,7 @@ amount; salaries entered, else the staff list) ÷ days in the month × days in t
 - Billing software can send numbers to `POST /api/entries` (JSON rows: date, department, type,
   amount, method, half), or export a CSV and use Add → Import.
 
-## 14 business types
+## 14 business types (work areas for each: `core/workareas.js`)
 General, Pharmacy (chemist), Grocery, Restaurant / Café, Hotel, Salon / Spa, Clinic, Clothing,
 Electronics, Hardware, Bakery, Auto service, Gym, Home / professional services. Each has its own
 departments, key ratios, guide and vault records. More → Guide shows them.

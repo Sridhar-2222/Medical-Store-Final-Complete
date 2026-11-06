@@ -292,3 +292,56 @@ test('overdue customer reminders stay listed until marked done', () => {
   a.saveVaultRecord(Object.assign({}, r, { done: true }));
   assert.ok(!a.vaultDue({ days: 7 }).some((x) => x.record.id === r.id));
 });
+
+const W = require('../core/workareas');
+test('every business type has its own work areas, and every key number can be worked out', () => {
+  for (const { key } of I.list()) {
+    const w = W.AREAS[key];
+    assert.ok(w && w.title && w.customers && w.visitors && w.counters.length >= 2 && w.numbers.length >= 2, key);
+    const keys = new Set(w.counters.map((c) => c.key).concat(['joins']));
+    for (const n of w.numbers) for (const src of [n.a, n.b]) assert.ok(/^(sales|purchases|walkins|dep:\d+)$/.test(src) || keys.has(src), key + ' ' + n.label + ' ' + src);
+    for (const c of w.counters) assert.match(c.eg, /^e\.g\. /, key + ' ' + c.key);
+  }
+});
+
+test('hotel: rooms sold and available give occupancy and average room rate', () => {
+  const a = fresh('hotel');
+  const rooms = a.list('departments', { sort: 'order' }).rows[0];
+  assert.equal(rooms.name, 'Rooms');
+  a.saveDailySheet({ date: TODAY, rows: [{ departmentId: rooms.id, sale: 62000, cash: 62000 }] });
+  a.saveWorkDay({ date: TODAY, values: { roomsAvailable: 40, roomsSold: 31, guests: 58 } });
+  const rep = a.workReport({ from: TODAY, to: TODAY });
+  const by = Object.fromEntries(rep.numbers.map((x) => [x.label, x.value]));
+  assert.equal(by.Occupancy, 77.5); assert.equal(by['Average room rate'], 2000); assert.equal(by['Room income per available room'], 1550);
+  assert.equal(a.workConfig().customers, 'Guests');
+  a.saveWorkDay({ date: TODAY, values: { roomsAvailable: 40, roomsSold: 30 } });           // same day: replaced, not added
+  assert.equal(a.workReport({ from: TODAY, to: TODAY }).totals.roomsSold, 30);
+  assert.throws(() => a.saveWorkDay({ date: TODAY, values: { roomsSold: -1 } }), /negative/);
+});
+
+test('garments: pending alterations and pieces per bill', () => {
+  const a = fresh('apparel');
+  assert.match(a.info().preset.name, /Garments/);
+  a.saveWorkDay({ date: Y, values: { bills: 20, pieces: 50, altIn: 8, altOut: 5 } });
+  a.saveWorkDay({ date: TODAY, values: { bills: 20, pieces: 40, altIn: 2, altOut: 4 } });
+  const by = Object.fromEntries(a.workReport({ from: Y, to: TODAY }).numbers.map((x) => [x.label, x.value]));
+  assert.equal(by['Alterations still pending'], 1); assert.equal(by['Pieces per bill'], 2.25);
+});
+
+test('Master: features switch off and rename, examples change, work areas can be changed and reset', () => {
+  const a = fresh('services');
+  assert.equal(a.masterState().hidden.store, true);                                  // does not fit a services business
+  a.saveMaster({ hidden: { store: false, bulk: true }, names: { accounts: 'Money book' }, examples: { fixed: 'e.g. Office rent' } });
+  const m = a.masterState();
+  assert.equal(m.hidden.store, false); assert.equal(m.hidden.bulk, true); assert.equal(m.names.accounts, 'Money book'); assert.equal(m.examples.fixed, 'e.g. Office rent');
+  const cfg = a.saveWorkConfig({ title: 'Site work', customers: 'Clients', visitors: 'Visits', counters: [{ label: 'Sites visited', eg: 'e.g. 3' }, { label: 'Quotes sent' }] });
+  assert.deepEqual(cfg.counters.map((x) => x.key), ['sites-visited', 'quotes-sent']);
+  assert.equal(a.workConfig().title, 'Site work');
+  assert.throws(() => a.saveWorkConfig({ counters: [] }), /at least one/);
+  a.saveWorkConfig({ reset: true }); assert.equal(a.workConfig().title, 'Jobs & enquiries');
+  a.saveMaster({ reset: true }); assert.equal(a.masterState().names.accounts, undefined);
+  // Master changes travel to the office system like other changes
+  const b = fresh('services');
+  assert.ok(b.applyOps([{ opId: 'm1', method: 'saveMaster', args: [{ hidden: { bulk: true } }] }, { opId: 'w1', method: 'saveWorkDay', args: [{ date: TODAY, values: { jobsDone: 3 } }] }]).every((r) => r.ok));
+  assert.equal(b.masterState().hidden.bulk, true); assert.equal(b.workDay(TODAY).values.jobsDone, 3);
+});

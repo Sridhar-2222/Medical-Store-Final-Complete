@@ -242,3 +242,11 @@ details.sec > .in { padding: 0 14px 14px; display: grid; gap: 10px; }
 label.item.chk { cursor: pointer; }
 label.item.chk input { width: 22px; height: 22px; flex: none; }
 .app-version { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 14px; }
+
+/* Master pages */
+.item.mf, .item.mw { flex-wrap: wrap; gap: 8px; }
+.item.mf label.chk { flex: 1 1 100%; display: flex; gap: 10px; align-items: center; }
+.item.mf input[type=checkbox] { width: 22px; height: 22px; }
+.item.mf input[type=text] { flex: 1 1 100%; }
+.item.mw input[type=text] { flex: 1 1 120px; min-width: 0; }
+ul.plain { margin: 0; padding-left: 18px; }

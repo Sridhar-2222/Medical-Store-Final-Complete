@@ -6,13 +6,13 @@
  * UMD: works in the browser and in Node (tests).
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./industries'), require('./review'), require('./accounts'));
-  else root.BizBase = factory(root.BizIndustries, root.BizReview, root.BizAccounts);
-})(typeof self !== 'undefined' ? self : this, function (Industries, Review, Accounts) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./industries'), require('./review'), require('./accounts'), require('./workareas'));
+  else root.BizBase = factory(root.BizIndustries, root.BizReview, root.BizAccounts, root.BizWorkAreas);
+})(typeof self !== 'undefined' ? self : this, function (Industries, Review, Accounts, WorkAreas) {
   'use strict';
 
   var VERSION = 3;
-  var COLLECTIONS = ['departments', 'entries', 'receipts', 'customers', 'vaultRecords', 'messages', 'staff', 'offers', 'advances', 'attendance'];
+  var COLLECTIONS = ['departments', 'entries', 'receipts', 'customers', 'vaultRecords', 'messages', 'staff', 'offers', 'advances', 'attendance', 'workdays'];
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function newId(v) { return typeof v === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(v) ? v : uid(); }
@@ -69,7 +69,8 @@
     staff: ['name', 'role', 'phone', 'salary', 'active'],
     offers: ['title', 'pct', 'amount', 'validTill', 'reason', 'createdAt'],
     advances: ['date', 'staffName', 'kind', 'amount', 'how', 'givenBy', 'note'],
-    attendance: ['date', 'staffName', 'status', 'note', 'markedAt']
+    attendance: ['date', 'staffName', 'status', 'note', 'markedAt'],
+    workdays: ['date', 'values', 'note']
   };
 
   function createApp(store, opts) {
@@ -213,7 +214,7 @@
     // Changes recorded while offline, applied once each.
     var SYNCABLE = ['setup', 'saveSettings', 'saveCustomer', 'removeCustomer', 'saveDepartment', 'removeDepartment', 'saveEntry', 'removeEntry',
       'saveDailySheet', 'saveReceipt', 'loadReviewSamples', 'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries',
-      'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer', 'saveAdvance', 'removeAdvance', 'markAttendance'];
+      'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer', 'saveAdvance', 'removeAdvance', 'markAttendance', 'saveWorkDay', 'saveWorkConfig', 'saveMaster'];
     api.applyOps = function (ops) {
       var out = [];
       (ops || []).forEach(function (op) {
@@ -230,9 +231,11 @@
 
     Object.assign(ctxRef, { api: api, db: function () { return db; }, tx: tx, touch: touch, drop: drop, find: find, mustFind: mustFind, fail: fail,
       uid: uid, newId: newId, today: today, stamp: stamp, settings: settings, preset: preset, clone: clone,
+      markSettings: function () { if (changes) changes.settings = true; },
       onSetup: function (fn) { setupHooks.push(fn); } });
     Review.install(ctxRef);
     if (Accounts) Accounts.install(ctxRef);
+    if (WorkAreas) WorkAreas.install(ctxRef);
 
     api.methods = function () { return Object.keys(api).filter(function (k) { return !/Inner$/.test(k); }); };
     return api;

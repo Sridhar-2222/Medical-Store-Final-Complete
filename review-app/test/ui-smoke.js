@@ -18,7 +18,7 @@ const { serve } = require('./serve');
   await page.click('#su-go');
   await page.waitForSelector('.hdr');
   const shots = process.env.SHOT_DIR;
-  for (const r of ['home', 'accounts', 'sales', 'sale-add', 'purchases', 'purchase-add', 'salaries', 'fixed', 'exp-variable', 'exp-maintenance', 'exp-sudden', 'exp-add', 'cash', 'pl', 'receipts', 'store', 'staff', 'staff-edit', 'customers', 'cust-list', 'cust-add', 'discounts', 'offers', 'offer-add', 'reminders', 'messages', 'reports', 'alerts', 'rep-sales', 'rep-spend', 'spot', 'ask-ai', 'setup', 'setup-biz', 'setup-depts', 'setup-store', 'setup-fixed', 'setup-video', 'setup-ai', 'sync', 'backup', 'guide', 'advances', 'advance-add', 'attendance', 'daily', 'bulk']) {
+  for (const r of ['home', 'accounts', 'sales', 'sale-add', 'purchases', 'purchase-add', 'salaries', 'fixed', 'exp-variable', 'exp-maintenance', 'exp-sudden', 'exp-add', 'cash', 'pl', 'receipts', 'store', 'staff', 'staff-edit', 'customers', 'cust-list', 'cust-add', 'discounts', 'offers', 'offer-add', 'reminders', 'messages', 'reports', 'alerts', 'rep-sales', 'rep-spend', 'spot', 'ask-ai', 'setup', 'setup-biz', 'setup-depts', 'setup-store', 'setup-fixed', 'setup-video', 'setup-ai', 'sync', 'backup', 'guide', 'advances', 'advance-add', 'attendance', 'daily', 'bulk', 'work', 'work-add', 'master-features', 'master-examples', 'master-work']) {
     await page.goto(url + '#' + r);
     await page.waitForTimeout(r === 'home' ? 2600 : 250);
     const bad = await page.$('#view .banner');

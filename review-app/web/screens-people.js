@@ -9,7 +9,7 @@
   function deps() { return api.list('departments', { sort: 'order' }).rows; }
 
   // ================================================================ CUSTOMERS (level 2)
-  A.screen('customers', { title: 'Customers', crumb: 'Header', back: 'home', render: function (el) {
+  A.screen('customers', { title: function () { return api.masterState().names.customers || api.workConfig().customers; }, crumb: 'Header', back: 'home', render: function (el) {
     var n = api.info().counts.customers, due = api.vaultDue({ days: 7 }), offers = api.list('offers').rows.filter(function (o) { return !o.validTill || o.validTill >= A.today(); });
     var withDisc = api.list('customers').rows.filter(function (c) { return c.discountPct > 0; }).length;
     el.innerHTML = '<p class="muted small">Every customer has a vault titled <b>' + esc(vaultTitle()) + '</b>: records, photos, files, discounts and your messages.</p><ul class="feats">' +
@@ -255,7 +255,7 @@
   A.screen('ask-ai', { title: 'Ask AI', crumb: 'Reports', back: 'reports', render: function (el) {
     var key = A.lsGet(A.AIKEY), s = A.S();
     el.innerHTML = '<div class="card"><p class="muted small">Your last 30 days of numbers are summarised and sent to ' + (s.aiProvider === 'openai' ? 'OpenAI' : 'Google Gemini') + ' with your question. Needs internet and an AI key.</p>' +
-      (key ? '' : '<div class="banner">Add an AI key first: Business setup → AI.</div><a class="btn" href="#setup-ai">Add AI key</a>') +
+      (key ? '' : '<div class="banner">Add an AI key first: Master → AI.</div><a class="btn" href="#setup-ai">Add AI key</a>') +
       A.seg('ai-q', [['Why did my profit change this month?', 'Profit change'], ['Where can I cut spending?', 'Cut spending'], ['How can I increase sales?', 'More sales'], ['Explain my alerts in simple words', 'Explain alerts']], '') +
       A.field('Your question', '<textarea id="ai-text" placeholder="Ask anything about your numbers"></textarea>') + '<button type="button" class="btn primary block" id="ai-go"' + (key ? '' : ' disabled') + '>Ask</button><div id="ai-out"></div></div>';
     A.onSeg($('#ai-q', el), function (v) { $('#ai-text', el).value = v; });
@@ -273,20 +273,24 @@
   } });
 
   // ================================================================ BUSINESS SETUP (level 2)
-  A.screen('setup', { title: 'Business setup', crumb: 'Header', back: 'home', render: function (el) {
-    var s = A.S();
-    el.innerHTML = '<ul class="feats">' +
-      feat('setup-biz', '⌂', 'Business details', s.businessName + ' · vault title "' + vaultTitle() + '"') +
-      feat('setup-depts', 'A', 'Sales departments', deps().filter(function (d) { return d.active !== false; }).map(function (d) { return d.name; }).join(', ')) +
-      feat('setup-store', '▦', 'Store categories', api.storeCategories().join(', ')) +
-      feat('setup-fixed', '▣', 'Usual fixed costs', 'Monthly amounts used until bills are entered') +
-      feat('setup-video', '▶', 'Videos', 'YouTube clips for the owner and for customers') +
-      feat('setup-ai', '✦', 'AI', (s.aiProvider === 'openai' ? 'OpenAI' : 'Google Gemini') + (A.lsGet(A.AIKEY) ? ' · key added' : ' · no key (optional)')) +
-      feat('sync', '⇄', 'Office system', A.sync.url ? 'Connected' : 'This phone only') +
-      feat('backup', '⇩', 'Backup & data', 'Save, restore, Excel, example data') +
-      feat('guide', '?', 'Guide for my business', A.P().name) + '</ul><p class="app-version">Fingertrip.biz AI version ' + esc(A.VERSION) + '</p>';
+  A.screen('setup', { title: 'Master', crumb: 'Header · no login needed', back: 'home', render: function (el) {
+    var s = A.S(), wc = api.workConfig(), ms = api.masterState(), off = Object.keys(ms.hidden).filter(function (k) { return ms.hidden[k]; }).length;
+    el.innerHTML = '<p class="muted small">Change the app for your business here. Changes apply at once on this phone (and on every phone connected to the office system).</p><ul class="feats">' +
+      A.feat('master-features', '☰', 'Features: show, hide, rename', off ? off + ' switched off' : 'All switched on') +
+      A.feat('master-work', '✎', 'Work areas for ' + A.P().name, wc.title + ': ' + wc.counters.map(function (x) { return x.label; }).slice(0, 3).join(', ') + (wc.counters.length > 3 ? '…' : '')) +
+      A.feat('master-examples', 'e.g.', 'Example lines', 'The grey "e.g." line under each feature') +
+      '</ul><div class="section-title">Business setup</div><ul class="feats">' +
+      A.featRaw('setup-biz', '⌂', 'Business details', s.businessName + ' · vault title "' + vaultTitle() + '"') +
+      A.featRaw('setup-depts', 'A', 'Sales departments', deps().filter(function (d) { return d.active !== false; }).map(function (d) { return d.name; }).join(', ')) +
+      A.featRaw('setup-store', '▦', 'Store categories', api.storeCategories().join(', ')) +
+      A.featRaw('setup-fixed', '▣', 'Usual fixed costs', 'Monthly amounts used until bills are entered') +
+      A.featRaw('setup-video', '▶', 'Videos', 'YouTube clips for the owner and for customers') +
+      A.featRaw('setup-ai', '✦', 'AI', (s.aiProvider === 'openai' ? 'OpenAI' : 'Google Gemini') + (A.lsGet(A.AIKEY) ? ' · key added' : ' · no key (optional)')) +
+      A.featRaw('sync', '⇄', 'Office system', A.sync.url ? 'Connected' : 'This phone only') +
+      A.featRaw('backup', '⇩', 'Backup & data', 'Save, restore, Excel, example data') +
+      A.featRaw('guide', '?', 'Guide for my business', A.P().name) + '</ul><p class="app-version">Fingertrip.biz AI version ' + esc(A.VERSION) + '</p>';
   } });
-  A.screen('setup-biz', { title: 'Business details', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('setup-biz', { title: 'Business details', crumb: 'Master', back: 'setup', render: function (el) {
     var s = A.S();
     el.innerHTML = '<div class="card">' + A.field('Business name', A.input('sb-name', 'text', s.businessName)) +
       A.field('Customer vault title', A.input('sb-vault', 'text', s.vaultTitle, 'placeholder="' + esc(s.businessName) + '"')) + '<p class="muted small">Customers see this name on their vault and messages, e.g. "Sai Ram Hotel", "ABC Furniture Shop", "123 Building Materials".</p>' +
@@ -300,7 +304,7 @@
         halfDaySplit: A.val('sb-split', el), currency: A.val('sb-cur', el), fluctuationPct: A.val('sb-fl', el), collectionGapPct: A.val('sb-gap', el) }); }, 'Saved')) A.go('setup');
     };
   } });
-  A.screen('setup-depts', { title: 'Sales departments', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('setup-depts', { title: 'Sales departments', crumb: 'Master', back: 'setup', render: function (el) {
     var list = deps();
     el.innerHTML = '<p class="muted small">Sales are entered per department (A, B, C…). Rename them to fit your business, e.g. Dine-in, Catering, Door delivery.</p>' +
       '<div class="row">' + A.input('dp-new', 'text', '', 'class="grow" placeholder="New department"') + '<button type="button" class="btn primary" id="dp-add">Add</button></div>' +
@@ -309,7 +313,7 @@
     $$('[data-n]', el).forEach(function (i) { i.onchange = function () { A.act(function () { return api.saveDepartment({ id: i.dataset.n, name: i.value }); }, 'Renamed'); }; });
     $$('[data-h]', el).forEach(function (b) { b.onclick = function () { var d = api.get('departments', b.dataset.h); if (A.act(function () { return api.saveDepartment({ id: d.id, name: d.name, active: d.active === false }); })) A.render(); }; });
   } });
-  A.screen('setup-store', { title: 'Store categories', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('setup-store', { title: 'Store categories', crumb: 'Master', back: 'setup', render: function (el) {
     var cats = api.storeCategories();
     el.innerHTML = '<p class="muted small">Purchase bills are filed under these categories (no item-by-item stock).</p><div class="row">' + A.input('sc-new', 'text', '', 'class="grow" placeholder="New category"') + '<button type="button" class="btn primary" id="sc-add">Add</button></div>' +
       '<ul class="list">' + cats.map(function (c, i) { return '<li class="item"><div class="t"><input value="' + esc(c) + '" data-i="' + i + '" aria-label="Category"></div><button type="button" class="btn small danger" data-rm="' + i + '">Remove</button></li>'; }).join('') + '</ul>';
@@ -318,7 +322,7 @@
     $$('[data-i]', el).forEach(function (i) { i.onchange = function () { var l = cats.slice(); l[+i.dataset.i] = i.value; save(l); }; });
     $$('[data-rm]', el).forEach(function (b) { b.onclick = function () { var l = cats.slice(); l.splice(+b.dataset.rm, 1); save(l); }; });
   } });
-  A.screen('setup-fixed', { title: 'Usual fixed costs', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('setup-fixed', { title: 'Usual fixed costs', crumb: 'Master', back: 'setup', render: function (el) {
     var list = (A.S().fixedCosts || []).slice();
     el.innerHTML = '<p class="muted small">Monthly amounts that do not change day to day. Used for each day\'s profit until that month\'s actual bill is entered under Accounts → Fixed costs. Salaries come from the Staff list.</p>' +
       '<ul class="list">' + list.map(function (f, i) { return '<li class="item"><div class="t"><input value="' + esc(f.name) + '" data-n="' + i + '" aria-label="Name"></div><input type="number" min="0" style="max-width:120px" data-a="' + i + '" value="' + esc(f.amount || '') + '" aria-label="Monthly amount"><button type="button" class="btn small ghost" data-rm="' + i + '">✕</button></li>'; }).join('') + '</ul>' +
@@ -328,7 +332,7 @@
     $$('[data-rm]', el).forEach(function (b) { b.onclick = function () { var l = read(); l.splice(+b.dataset.rm, 1); api.saveSettings({ fixedCosts: l }); A.render(); }; });
     $('#fx-save', el).onclick = function () { if (A.act(function () { return api.saveSettings({ fixedCosts: read() }); }, 'Saved')) A.go('setup'); };
   } });
-  A.screen('setup-video', { title: 'Videos', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('setup-video', { title: 'Videos', crumb: 'Master', back: 'setup', render: function (el) {
     var s = A.S();
     el.innerHTML = '<div class="card">' + A.field('Owner / staff video (YouTube link)', A.input('vd-own', 'url', s.ownerVideo, 'placeholder="https://youtu.be/…"')) + '<p class="muted small">Shown on the main page: training, how to enter bills, your own notes.</p>' +
       A.videoCard(s.ownerVideo, 'Owner video', 'Preview') +
@@ -340,7 +344,7 @@
       if (A.act(function () { return api.saveSettings({ ownerVideo: o, customerVideo: c }); }, 'Saved')) A.render();
     };
   } });
-  A.screen('setup-ai', { title: 'AI', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('setup-ai', { title: 'AI', crumb: 'Master', back: 'setup', render: function (el) {
     var s = A.S();
     el.innerHTML = '<div class="card"><p class="muted small">Optional. Without a key, photos are read on this phone (offline). With a key, handwritten and messy bills are read better when online, and you can use Ask AI. The key stays on this phone.</p>' +
       A.field('AI provider', A.seg('ai-p', [['openai', 'OpenAI'], ['gemini', 'Google Gemini']], s.aiProvider || 'gemini')) +
@@ -352,7 +356,7 @@
     $('#ai-save', el).onclick = function () { A.lsSet(A.AIKEY, A.val('ai-key', el).trim()); if (A.act(function () { return api.saveSettings({ aiProvider: prov, aiModel: A.val('ai-model', el).trim() }); }, 'Saved')) A.go('setup'); };
   } });
 
-  A.screen('sync', { title: 'Office system', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('sync', { title: 'Office system', crumb: 'Master', back: 'setup', render: function (el) {
     var sy = A.sync;
     if (!sy.url) {
       el.innerHTML = '<div class="card"><h2>This phone works on its own</h2><p class="muted small">Everything is saved on this phone. Connect it to Fingertrip.biz AI on your office computer to share numbers between phones and give customers a private vault link.</p>' +
@@ -377,7 +381,7 @@
     $('#sy-off', el).onclick = function () { A.confirmSheet('Disconnect this phone? It keeps its data and works on its own.', 'Disconnect', true).then(function (ok) { if (ok) { A.disconnect(); A.render(); } }); };
   } });
 
-  A.screen('backup', { title: 'Backup & data', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('backup', { title: 'Backup & data', crumb: 'Master', back: 'setup', render: function (el) {
     var n = api.info().counts;
     el.innerHTML = '<div class="card"><h2>Backup</h2><p class="muted small">' + n.entries + ' entries, ' + n.customers + ' customers. Save a backup to Google Drive or WhatsApp now and then.</p>' +
       '<label class="chk"><input type="checkbox" id="bk-ph" checked> Include photos and files</label><button type="button" class="btn primary block" id="bk-save">Save backup</button>' +
@@ -409,7 +413,7 @@
   } });
 
   var guideKey = '';
-  A.screen('guide', { title: 'Guide', crumb: 'Business setup', back: 'setup', render: function (el) {
+  A.screen('guide', { title: 'Guide', crumb: 'Master', back: 'setup', render: function (el) {
     var key = guideKey || A.S().industry, p = A.Industries.get(key), r = p.review, pb = r.playbook, acc = window.BizAccounts;
     function ul(a) { return '<ul class="list">' + a.map(function (x) { return '<li class="small">• ' + esc(x) + '</li>'; }).join('') + '</ul>'; }
     el.innerHTML = '<select id="gd">' + A.opt(A.Industries.list().map(function (i) { return { value: i.key, text: i.icon + ' ' + i.name }; }), key) + '</select>' +

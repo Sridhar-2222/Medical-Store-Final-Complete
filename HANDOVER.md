@@ -41,7 +41,10 @@ Working modes: **phone only** (default, fully offline) or **connected to an offi
 3.2.0 adds: Upload-bill button at the top of every Accounts / Store feature, one "e.g." example line per feature (two quick picks per expense kind),
 Staff advances (not an expense; balance per person), Attendance (present from bills marked "Bill written by", owner's P/½/A/L mark wins),
 Daily summary (Reports and Accounts; share on WhatsApp), Bulk reminder (discount offer / video / own message to many customers),
-no red marks on customer reminders, header names that never split mid-word with large phone text, app version shown in Business setup.
+no red marks on customer reminders, header names that never split mid-word with large phone text, app version shown in Master.
+Also in 3.2.0: **Work areas** per business type (`core/workareas.js`: daily counts + key numbers, e.g. hotel occupancy / average room rate,
+garment pieces per bill / pending alterations) and the **Master** header (replaces Business setup; no login): show / hide / rename features,
+change work areas and example lines; all stored in settings.master and synced. Clothing type renamed "Garments / Clothing / Footwear".
 
 **Previous: Fingertrip.biz AI 3.1.0** (Android app id `biz.fingertrip.ai`; earlier builds were `com.bizcore.app`). Play Store kit in `play-store/`.
 App = BizCore 3.0 rebranded: Main page with 6 headers (Accounts, Customers, Store,

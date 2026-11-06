@@ -25,7 +25,7 @@ const { serve } = require('./serve');
   await page.waitForSelector('.hdr');
   const heads = await page.$$eval('.hdr b', (e) => e.map((x) => x.textContent));
   step('main page headers: ' + heads.join(' · '));
-  if (heads.length !== 6 || !(await page.$('svg.finger'))) throw new Error('main page headers / fingertip line missing');
+  if (heads.length !== 7 || !(await page.$('svg.finger'))) throw new Error('main page headers / fingertip line missing');
 
   // Accounts → Sales → Dine-in: read the day-end report photo
   await page.click('.hdr[href="#accounts"]'); await page.waitForSelector('.feat');

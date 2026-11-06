@@ -5,7 +5,14 @@
 
   function deps() { return api.list('departments', { sort: 'order' }).rows.filter(function (d) { return d.active !== false; }); }
   function stat(l, v, h, cls) { return '<div class="stat ' + (cls || '') + '"><span class="l">' + esc(l) + '</span><span class="v">' + esc(v) + '</span>' + (h ? '<span class="h">' + esc(h) + '</span>' : '') + '</div>'; }
+  // Master decides which features show and what they are called.
   function feat(href, ic, title, sub, fig, figCls) {
+    var ms = api.masterState();
+    if (ms.hidden[href]) return '';
+    if (ms.names[href]) title = ms.names[href];
+    return featRaw(href, ic, title, sub, fig, figCls);
+  }
+  function featRaw(href, ic, title, sub, fig, figCls) {
     return '<li><a class="feat" href="#' + href + '"><span class="ic" aria-hidden="true">' + ic + '</span><span class="t"><b>' + esc(title) + '</b>' + (sub ? '<span>' + esc(sub) + '</span>' : '') + '</span>' + (fig !== undefined ? '<span class="fig ' + (figCls || '') + '">' + esc(fig) + '</span>' : '') + '</a></li>';
   }
   function monthOf(d) { return (d || A.today()).slice(0, 7); }
@@ -26,10 +33,10 @@
   }
   function staffOf(id, el) { var v = A.val(id, el); if (v !== '' || $('#' + id, el)) A.lsSet(LASTSTAFF, v); var st = v ? api.get('staff', v) : null; return { staffId: st ? st.id : '', staffName: st ? st.name : '' }; }
   function nowTime() { var d = new Date(); return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes(); }
-  function eg(key) { var x = api.kinds().featureExamples[key]; return x ? '<p class="eg">' + esc(x) + '</p>' : ''; }
+  function eg(key) { var x = api.masterState().examples[key] || api.kinds().featureExamples[key]; return x ? '<p class="eg">' + esc(x) + '</p>' : ''; }
   function uploadBtn(id, text) { return '<button type="button" class="btn upload block" id="' + id + '">📷 ' + esc(text || 'Upload bill (photo / file)') + '</button>'; }
   A.staffPick = staffPick; A.staffOf = staffOf; A.eg = eg; A.uploadBtn = uploadBtn;
-  A.stat = stat; A.feat = feat; A.ytId = ytId; A.videoCard = videoCard; A.monthName = monthName; A.shiftMonth = shiftMonth;
+  A.stat = stat; A.feat = feat; A.featRaw = featRaw; A.ytId = ytId; A.videoCard = videoCard; A.monthName = monthName; A.shiftMonth = shiftMonth;
 
   // ================================================================ MAIN PAGE
   A.screen('home', { title: function () { return A.S().businessName; }, render: function (el) {
@@ -40,14 +47,16 @@
     var alerts = api.alerts({}).flags.filter(function (f) { return f.severity !== 'info'; }).length;
     var bills = api.list('entries', { type: 'purchase', from: R.addDays(t, -6), to: t }).total;
     var staff = api.list('staff').rows.filter(function (x) { return x.active !== false; }).length;
+    var wc = api.workConfig(), wt = api.workDay(t), ms = api.masterState();
     var H = [
       ['accounts', '₹', 'Accounts', 'Net profit this month ' + money(month.net), month.net < 0],
-      ['customers', '☺', 'Customers', due ? due + ' to contact this week' : api.info().counts.customers + ' customers'],
+      ['work', '✎', wc.title, Object.keys(wt.values).length ? 'Today counted' : 'Count today\'s work'],
+      ['customers', '☺', wc.customers, due ? due + ' to contact this week' : api.info().counts.customers + ' ' + wc.customers.toLowerCase()],
       ['store', '▦', 'Store', bills + ' purchase bills this week'],
       ['reports', '▤', 'Reports', alerts ? alerts + ' things to check' : 'All looks normal', alerts > 0],
       ['staff', '◎', 'Staff', staff + ' people'],
-      ['setup', '⚙', 'Business setup', 'Departments, store, fixed costs']
-    ];
+      ['setup', '⚙', 'Master', 'Features, names, work areas, setup']
+    ].filter(function (h) { return !ms.hidden[h[0]]; }).map(function (h) { if (ms.names[h[0]] && h[0] !== 'setup') h[2] = ms.names[h[0]]; return h; });
     el.innerHTML = '<div class="today-strip">' + stat('Sales today', money(pl.sales)) + stat('Net profit today', money(pl.net), 'after a day\'s share of fixed costs', pl.net < 0 ? 'bad' : 'good') + '</div>' +
       videoCard(s.ownerVideo, 'How to use Fingertrip.biz AI', 'Video for the owner and staff') +
       '<div class="section-title">Main headers</div>' +
@@ -152,7 +161,7 @@
     if (!d) { A.go('sales'); return; }
     var date = (st && st.date) || A.today(), half = (st && st.half) || '';
     var row = api.getDailySheet(date, half).filter(function (r) { return r.departmentId === d.id; })[0] || {};
-    var F = [['sale', 'Sales (billed) ₹'], ['cash', 'Received in cash ₹'], ['upi', 'Received by UPI ₹'], ['card', 'Received by card ₹'], ['otherCollection', 'Other / online ₹'], ['walkin', 'Walk-ins (optional)']];
+    var F = [['sale', 'Sales (billed) ₹'], ['cash', 'Received in cash ₹'], ['upi', 'Received by UPI ₹'], ['card', 'Received by card ₹'], ['otherCollection', 'Other / online ₹'], ['walkin', api.workConfig().visitors + ' (count, optional)']];
     el.innerHTML = '<div class="card"><h2>' + esc(d.name) + '</h2><div class="grid2">' + A.field('Date', A.input('sa-date', 'date', date)) +
       A.field('Part of day', '<select id="sa-half">' + A.opt([{ value: '', text: 'Whole day' }, { value: 'first', text: 'Morning' }, { value: 'second', text: 'Evening' }], half) + '</select>') + '</div>' +
       '<div class="section-title">Day-end report or bill book page</div><div id="sa-att"></div>' +

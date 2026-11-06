@@ -2,7 +2,7 @@
  * shared helpers and first-time setup. Screens register with App.screen(). */
 (function () {
   'use strict';
-  var Base = window.BizBase, Industries = window.BizIndustries, R = window.BizReview;
+  var Base = window.BizBase, Industries = window.BizIndustries, R = window.BizReview, Work = window.BizWorkAreas;
   var KEY = 'bizreview-v2', AIKEY = 'bizreview-gemini-key';
   var APP_VERSION = '3.2.0';   // keep in step with android/app/build.gradle versionName
   var Cap = window.Capacitor;
@@ -24,7 +24,7 @@
   var SKEY = 'bizreview-server', PKEY = 'bizreview-pin', OKEY = 'bizreview-outbox', XKEY = 'bizreview-sync-problems';
   var WRITES = ['setup', 'saveSettings', 'saveCustomer', 'removeCustomer', 'saveDepartment', 'removeDepartment', 'saveEntry', 'removeEntry', 'saveDailySheet',
     'saveReceipt', 'loadReviewSamples', 'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries',
-    'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer', 'saveAdvance', 'removeAdvance', 'markAttendance'];
+    'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer', 'saveAdvance', 'removeAdvance', 'markAttendance', 'saveWorkDay', 'saveWorkConfig', 'saveMaster'];
   function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
   var sync = { url: lsGet(SKEY) || '', outbox: (function () { try { return JSON.parse(lsGet(OKEY) || '[]'); } catch (e) { return []; } })(), status: 'idle', last: '', running: false, timer: null };
   function base() { var u = sync.url.trim(); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'http://' + u; return u.replace(/\/+$/, '') + '/'; }
@@ -225,7 +225,7 @@
     $('#app').innerHTML =
       '<header class="top" id="top">' + (def.back ? '<button class="back" id="back" aria-label="Back">‹</button>' : '<span class="logo" aria-hidden="true"><svg viewBox="0 0 64 64" width="30" height="30"><g fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"><path d="M12 31a20 20 0 0 1 40 0"/><path d="M16 44V34a16 16 0 0 1 32 0v10"/><path d="M22 48V34a10 10 0 0 1 20 0v8"/><path d="M28 51V35a4 4 0 0 1 8 0v14"/></g></svg></span>') +
       '<div class="titles"><h1>' + esc(typeof def.title === 'function' ? def.title() : def.title) + '</h1><div class="sub">' + esc(def.crumb ? (typeof def.crumb === 'function' ? def.crumb() : def.crumb) : s.businessName + ' · ' + niceDate(today(), true)) + '</div></div>' +
-      (name !== 'home' ? '<a class="back" href="#home" aria-label="Main page">⌂</a>' : '<a class="back" href="#setup" aria-label="Business setup">⚙</a>') + '</header>' +
+      (name !== 'home' ? '<a class="back" href="#home" aria-label="Main page">⌂</a>' : '<a class="back" href="#setup" aria-label="Master">⚙</a>') + '</header>' +
       '<main id="view"></main>';
     if (def.back) $('#back').onclick = function () { if (history.length > 1 && state.fromNav) history.back(); else go(def.back); };
     window.scrollTo(0, 0);
