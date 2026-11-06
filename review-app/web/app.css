@@ -1,4 +1,4 @@
-/* BizCore Review: phone-first. One column, big touch targets, bottom tabs. */
+/* Fingertrip.biz AI: phone-first. One column, big touch targets. */
 :root {
   --bg: #f2f4f8;
   --card: #ffffff;
@@ -182,7 +182,7 @@ details.sec > .in { padding: 0 14px 14px; display: grid; gap: 10px; }
 .types button.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink-soft); }
 
 /* ---------- 3.0: main page headers, fingertip line, features ---------- */
-.top .logo { width: 40px; height: 40px; border-radius: 12px; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; font-weight: 800; flex: none; }
+.top .logo { width: 40px; height: 40px; border-radius: 12px; background: #1f4fd8; display: grid; place-items: center; flex: none; }
 .top a.back { display: grid; place-items: center; text-decoration: none; flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--soft); color: var(--fg); font-size: 19px; }
 .today-strip { display: flex; gap: 10px; flex-wrap: wrap; }
 .today-strip .stat { flex: 1 1 140px; }

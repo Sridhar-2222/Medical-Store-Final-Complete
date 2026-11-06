@@ -49,5 +49,5 @@ LATEST: BizCore Review (review-app/) - rebuilt from scratch
 -----------------------------------------------------
 Phone app for owners: sales vs spending, cash in hand, walk-ins, stock and a
 Customer Vault titled with the business name. Works offline on the phone;
-optional office system. Android app: generic-app/android-app/release/BizCore.apk
+optional office system. Android app (Fingertrip.biz AI): generic-app/android-app/release/Fingertrip-biz-AI.apk
 Guide: review-app/README.md

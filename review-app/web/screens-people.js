@@ -100,7 +100,7 @@
 
   A.screen('discounts', { title: 'Customer discount', crumb: 'Customers', back: 'customers', render: function (el) {
     var rows = api.list('customers', { sort: 'name' }).rows;
-    el.innerHTML = '<p class="muted small">A standing discount for regular customers. It shows in their vault and you can mention it in messages. (BizCore records it; billing stays in your billing system.)</p>' +
+    el.innerHTML = '<p class="muted small">A standing discount for regular customers. It shows in their vault and you can mention it in messages. (The app records it; billing stays in your billing system.)</p>' +
       (rows.length ? '<ul class="list">' + rows.map(function (c) { return '<li class="item"><div class="t"><b>' + esc(c.name) + '</b><span>' + esc(c.phone || '') + '</span></div><input type="number" min="0" max="100" style="max-width:90px" data-d="' + c.id + '" value="' + esc(c.discountPct || '') + '" placeholder="0" aria-label="Discount % for ' + esc(c.name) + '"><span class="muted">%</span></li>'; }).join('') + '</ul>' : A.empty('No customers yet', '', '<a class="btn primary" href="#cust-add">Add customer</a>'));
     $$('[data-d]', el).forEach(function (i) { i.onchange = function () { var c = api.get('customers', i.dataset.d); A.act(function () { return api.saveCustomer(Object.assign({}, c, { discountPct: i.value })); }, 'Saved'); }; });
   } });
@@ -352,7 +352,7 @@
   A.screen('sync', { title: 'Office system', crumb: 'Business setup', back: 'setup', render: function (el) {
     var sy = A.sync;
     if (!sy.url) {
-      el.innerHTML = '<div class="card"><h2>This phone works on its own</h2><p class="muted small">Everything is saved on this phone. Connect it to BizCore on your office computer to share numbers between phones and give customers a private vault link.</p>' +
+      el.innerHTML = '<div class="card"><h2>This phone works on its own</h2><p class="muted small">Everything is saved on this phone. Connect it to Fingertrip.biz AI on your office computer to share numbers between phones and give customers a private vault link.</p>' +
         A.field('Office system address', A.input('sy-url', 'url', '', 'placeholder="192.168.1.20:8080" autocapitalize="off"')) + A.field('PIN', A.input('sy-pin', 'password', '', 'inputmode="numeric"')) +
         '<button type="button" class="btn primary block" id="sy-go">Connect</button><p class="muted small" id="sy-msg"></p></div>';
       $('#sy-go', el).onclick = function () {
@@ -385,8 +385,8 @@
       '<div class="card"><h2>Start over</h2><button type="button" class="btn danger block" id="bk-erase">Erase everything on this phone</button></div>';
     var stamp = A.today();
     $('#bk-save', el).onclick = function () {
-      var data = { app: 'BizCore', version: 3, db: api.exportAll(), files: [] };
-      ($('#bk-ph', el).checked ? A.files.all() : Promise.resolve([])).then(function (f) { data.files = f; A.saveFile('bizcore-backup-' + stamp + '.json', JSON.stringify(data), 'application/json'); });
+      var data = { app: 'Fingertrip.biz AI', version: 3, db: api.exportAll(), files: [] };
+      ($('#bk-ph', el).checked ? A.files.all() : Promise.resolve([])).then(function (f) { data.files = f; A.saveFile('fingertrip-backup-' + stamp + '.json', JSON.stringify(data), 'application/json'); });
     };
     $('#bk-file', el).onchange = function (e) {
       var f = e.target.files[0]; if (!f) return;

@@ -62,7 +62,7 @@
       .then(function () {
         return window.Tesseract.createWorker('eng', 1, { workerPath: base + 'worker.min.js', corePath: base + 'tesseract-core-lstm.wasm.js', langPath: base + 'lang',
           workerBlobURL: false, cacheMethod: 'none', gzip: false, logger: function (m) { if (progress && m && m.status) progress(m.status, m.progress); } });
-      }).then(function (w) { ocr.worker = w; ocr.loading = null; return w; }, function () { ocr.loading = null; throw new Error('Reading photos on this device is not available here. Use the BizCore app, or add an AI key.'); });
+      }).then(function (w) { ocr.worker = w; ocr.loading = null; return w; }, function () { ocr.loading = null; throw new Error('Reading photos on this device is not available here. Use the Fingertrip.biz AI app, or add an AI key.'); });
     return ocr.loading;
   }
   function aiOpts() {

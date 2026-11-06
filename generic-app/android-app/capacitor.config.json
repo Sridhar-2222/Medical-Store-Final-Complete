@@ -1,6 +1,6 @@
 {
-  "appId": "com.bizcore.app",
-  "appName": "BizCore",
+  "appId": "biz.fingertrip.ai",
+  "appName": "Fingertrip.biz AI",
   "webDir": "www",
   "android": {
     "allowMixedContent": false

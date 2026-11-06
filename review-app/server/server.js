@@ -58,7 +58,7 @@ function vaultPage(v, token) {
     '<h2>Your records</h2>' + (recs ? '<ul>' + recs + '</ul>' : '<p class="mut">Nothing saved yet.</p>') +
     '<h2>Messages from ' + esc(title) + '</h2>' + (msgs ? '<ul>' + msgs + '</ul>' : '<p class="mut">No messages yet.</p>') +
     (v.shop.phone ? '<p style="margin-top:22px"><a style="color:var(--ink)" href="https://wa.me/' + esc(String(v.shop.phone).replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')) + '">Message ' + esc(title) + ' on WhatsApp</a></p>' : '') +
-    '<p class="mut" style="margin-top:22px;font-size:13px">Private link. Only people you share it with can open it.</p></main></body></html>';
+    '<p class="mut" style="margin-top:22px;font-size:13px">Private link. Only people you share it with can open it. · Vault by Fingertrip.biz AI</p></main></body></html>';
 }
 
 async function createServer(options = {}) {

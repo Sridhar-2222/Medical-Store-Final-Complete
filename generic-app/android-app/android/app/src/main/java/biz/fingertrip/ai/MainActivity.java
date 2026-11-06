@@ -1,4 +1,4 @@
-package com.bizcore.app;
+package biz.fingertrip.ai;
 
 import com.getcapacitor.BridgeActivity;
 

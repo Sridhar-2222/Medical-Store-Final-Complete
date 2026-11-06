@@ -4,13 +4,13 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const res = path.join(__dirname, 'android/app/src/main/res');
-const BLUE = '#2448c8';
-const glyph = (s) => `<path d="M20 16h16a10 10 0 0 1 2 19.8A10 10 0 0 1 36 52H20z" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round" transform="${s}"/><path d="M20 34h17" stroke="#fff" stroke-width="6" transform="${s}"/>`;
+const BLUE = '#1f4fd8';
+const glyph = (s) => `<g transform="${s}"><g fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"><path d="M12 31a20 20 0 0 1 40 0"/><path d="M16 44V34a16 16 0 0 1 32 0v10"/><path d="M22 48V34a10 10 0 0 1 20 0v8"/><path d="M28 51V35a4 4 0 0 1 8 0v14"/></g></g>`;
 const svgs = {
   legacy: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${BLUE}"/>${glyph('')}</svg>`,
   round: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="${BLUE}"/>${glyph('translate(1 0)')}</svg>`,
   // adaptive foreground: glyph inside the central 66/108 safe zone, transparent background
-  fg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">${glyph('translate(22 22) scale(1)')}</svg>`
+  fg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">${glyph('translate(25 22) scale(0.9)')}</svg>`
 };
 (async () => {
   const b = await chromium.launch();

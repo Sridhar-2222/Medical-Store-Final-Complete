@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">BizCore</string>
-    <string name="title_activity_main">BizCore</string>
-    <string name="package_name">com.bizcore.app</string>
-    <string name="custom_url_scheme">com.bizcore.app</string>
+    <string name="app_name">Fingertrip.biz AI</string>
+    <string name="title_activity_main">Fingertrip.biz AI</string>
+    <string name="package_name">biz.fingertrip.ai</string>
+    <string name="custom_url_scheme">biz.fingertrip.ai</string>
 </resources>

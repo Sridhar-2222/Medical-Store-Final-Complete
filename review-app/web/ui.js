@@ -1,4 +1,4 @@
-/* BizCore Review: app shell. Storage, navigation (5 tabs + full-screen pages),
+/* Fingertrip.biz AI: app shell. Storage, navigation (main headers + full-screen pages),
  * shared helpers and first-time setup. Screens register with App.screen(). */
 (function () {
   'use strict';
@@ -94,7 +94,7 @@
     var u = url.trim(); if (!/^https?:\/\//i.test(u)) u = 'http://' + u; u = u.replace(/\/+$/, '') + '/';
     return fetch(u + 'api/health', { cache: 'no-store' }).then(function (r) { return r.json(); }, function () { throw new Error('Could not reach the office system at that address.'); })
       .then(function (h) {
-        if (!h || h.app !== 'BizCore Review') throw new Error('That address is not a BizCore Review office system.');
+        if (!h || h.app !== 'BizCore Review') throw new Error('That address is not a Fingertrip.biz AI office system.');
         return rpc('info', [], u, pin).then(function () { return h; });
       });
   }
@@ -221,7 +221,7 @@
     if (!screens[name]) name = 'home';
     document.title = (typeof def.title === 'function' ? def.title() : def.title) + ' · ' + s.businessName;
     $('#app').innerHTML =
-      '<header class="top" id="top">' + (def.back ? '<button class="back" id="back" aria-label="Back">‹</button>' : '<span class="logo" aria-hidden="true">B</span>') +
+      '<header class="top" id="top">' + (def.back ? '<button class="back" id="back" aria-label="Back">‹</button>' : '<span class="logo" aria-hidden="true"><svg viewBox="0 0 64 64" width="30" height="30"><g fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"><path d="M12 31a20 20 0 0 1 40 0"/><path d="M16 44V34a16 16 0 0 1 32 0v10"/><path d="M22 48V34a10 10 0 0 1 20 0v8"/><path d="M28 51V35a4 4 0 0 1 8 0v14"/></g></svg></span>') +
       '<div class="titles"><h1>' + esc(typeof def.title === 'function' ? def.title() : def.title) + '</h1><div class="sub">' + esc(def.crumb ? (typeof def.crumb === 'function' ? def.crumb() : def.crumb) : s.businessName + ' · ' + niceDate(today(), true)) + '</div></div>' +
       (name !== 'home' ? '<a class="back" href="#home" aria-label="Main page">⌂</a>' : '<a class="back" href="#setup" aria-label="Business setup">⚙</a>') + '</header>' +
       '<main id="view"></main>';
@@ -235,8 +235,8 @@
   // ---------------------------------------------------------------- first-time setup
   function renderSetup() {
     var chosen = info().settings.industry || 'restaurant';
-    $('#app').innerHTML = '<main style="padding-top:calc(24px + env(safe-area-inset-top,0px))"><div class="stack"><h1>Welcome to BizCore</h1>' +
-      '<p class="muted">Enter your sales, walk-ins, expenses and purchase bills; BizCore shows you where your business stands and what needs checking. Pick your business type.</p></div>' +
+    $('#app').innerHTML = '<main style="padding-top:calc(24px + env(safe-area-inset-top,0px))"><div class="stack"><h1>Welcome to Fingertrip.biz AI</h1>' +
+      '<p class="muted">Enter your sales, walk-ins, expenses and purchase bills; it shows you where your business stands and what needs checking. Pick your business type.</p></div>' +
       '<div class="types" id="types">' + Industries.list().map(function (i) {
         return '<button type="button" data-k="' + i.key + '"' + (i.key === chosen ? ' class="on"' : '') + '><span class="e" aria-hidden="true">' + i.icon + '</span><b>' + esc(i.name) + '</b></button>';
       }).join('') + '</div>' +

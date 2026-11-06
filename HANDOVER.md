@@ -1,4 +1,4 @@
-# BizCore Review: project handover
+# Fingertrip.biz AI (formerly BizCore): project handover
 
 Repository: `Sridhar-2222/Medical-Store-Final-Complete`, branch `claude/generic-multi-industry-app-llwtau`
 (not merged into `main` yet). Date of this summary: 6 Nov 2026.
@@ -37,7 +37,8 @@ Working modes: **phone only** (default, fully offline) or **connected to an offi
 
 ## 2. Current state (all done, tested, pushed)
 
-**Latest: BizCore 3.0** (Android 3.0.0). Main page with 6 headers (Accounts, Customers, Store,
+**Latest: Fingertrip.biz AI 3.1.0** (Android app id `biz.fingertrip.ai`; earlier builds were `com.bizcore.app`). Play Store kit in `play-store/`.
+App = BizCore 3.0 rebranded: Main page with 6 headers (Accounts, Customers, Store,
 Reports, Staff, Business setup) joined by the fingertip line; header → feature → entry pages;
 photo + file on every entry page; four expense kinds; P&L with fixed costs spread per day;
 customer discount and special offers; YouTube videos for owner and customers; OpenAI or Gemini.
@@ -47,13 +48,13 @@ See review-app/README.md and PLAN-v3.md.
 | Part | Where | State |
 |---|---|---|
 | **BizCore Review 2.0** (current app, rebuilt from scratch) | `review-app/` | Done |
-| Android app 2.0.0 (built from review-app) | `generic-app/android-app/release/BizCore.apk` | Done, signed |
+| Android app 2.0.0 (built from review-app) | `generic-app/android-app/release/Fingertrip-biz-AI.apk` | Done, signed |
 | Office system (optional server) | `review-app/server/server.js` | Done, not deployed anywhere |
 | Earlier versions (billing app, first review attempt) | `generic-app/` | Superseded; kept for reference |
 | Original medical-store WhatsApp bot | repo root (`whatsapp-bot.js` etc.) | Untouched |
 
 APK direct download (open in Chrome on the phone):
-https://github.com/Sridhar-2222/Medical-Store-Final-Complete/raw/claude/generic-multi-industry-app-llwtau/generic-app/android-app/release/BizCore.apk
+https://github.com/Sridhar-2222/Medical-Store-Final-Complete/raw/claude/generic-multi-industry-app-llwtau/generic-app/android-app/release/Fingertrip-biz-AI.apk
 
 Tests (all passing): `cd review-app && npm test` (core + server), `node test/ui-smoke.js`
 (every screen at phone size), `node test/phone-e2e.js` (daily numbers, bill photo and day-end

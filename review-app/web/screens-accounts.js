@@ -36,7 +36,7 @@
       ['setup', '⚙', 'Business setup', 'Departments, store, fixed costs']
     ];
     el.innerHTML = '<div class="today-strip">' + stat('Sales today', money(pl.sales)) + stat('Net profit today', money(pl.net), 'after a day\'s share of fixed costs', pl.net < 0 ? 'bad' : 'good') + '</div>' +
-      videoCard(s.ownerVideo, 'How to use BizCore', 'Video for the owner and staff') +
+      videoCard(s.ownerVideo, 'How to use Fingertrip.biz AI', 'Video for the owner and staff') +
       '<div class="section-title">Main headers</div>' +
       '<div class="hdr-wrap" id="hw"><div class="hdr-grid" id="hg">' + H.map(function (h) {
         return '<a class="hdr" href="#' + h[0] + '"><span class="cap">Header</span><span class="body"><span class="ic" aria-hidden="true">' + h[1] + '</span><b>' + esc(h[2]) + '</b><span class="fig' + (h[4] ? ' bad' : '') + '">' + esc(h[3]) + '</span></span></a>';

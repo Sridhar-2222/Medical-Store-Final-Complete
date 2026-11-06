@@ -1,17 +1,17 @@
-# BizCore privacy policy
+# Fingertrip.biz AI privacy policy
 
 _Last updated: 6 November 2026_
 
-BizCore is a bookkeeping and customer-reminder app for small businesses. This policy explains what
+Fingertrip.biz AI is a bookkeeping and customer-reminder app for small businesses. This policy explains what
 happens to the information you put into it.
 
 ## What the app stores
 The business enters its own sales, purchases, expenses, staff, customer records, photos and files.
-**All of it is stored on the phone where it is entered.** The developer of BizCore does not run a
+**All of it is stored on the phone where it is entered.** The developer of Fingertrip.biz AI does not run a
 server that receives this information and does not collect, sell or share it.
 
 ## When information leaves the phone (only if you choose)
-- **Office system:** if you connect the app to a BizCore office server, the app sends your entries,
+- **Office system:** if you connect the app to a Fingertrip.biz AI office server, the app sends your entries,
   photos and files to that server. The server is run by your business, not by the developer.
 - **AI reading (optional):** if you enter your own OpenAI or Google Gemini API key, photos you choose
   to read and the questions you ask are sent to that provider to be processed, under their terms
@@ -23,7 +23,7 @@ server that receives this information and does not collect, sell or share it.
   own records on that server.
 
 ## Customer information
-Businesses using BizCore are responsible for having their customers' agreement to keep their
+Businesses using Fingertrip.biz AI are responsible for having their customers' agreement to keep their
 details and to send them messages.
 
 ## Permissions
@@ -35,7 +35,7 @@ Uninstalling the app, or Business setup → Backup & data → Erase everything, 
 phone. Data on your own office server is deleted from that server.
 
 ## Children
-BizCore is meant for business owners and staff, not for children.
+Fingertrip.biz AI is meant for business owners and staff, not for children.
 
 ## Contact
 _your support email_

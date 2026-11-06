@@ -1,15 +1,15 @@
-# Google Play store listing: BizCore
+# Google Play store listing: Fingertrip.biz AI
 
 Copy each field into Play Console → Grow → Store presence → Main store listing.
 
-**App name** (max 30): `BizCore: Sales, Spend & Profit`
+**App name** (max 30): `Fingertrip.biz AI: Business`
 
 **Short description** (max 80):
 `Sales, spending and daily profit for your shop, hotel or clinic, from photos.`
 
 **Full description** (max 4000):
 ```
-BizCore shows a business owner where the business stands every day: sales, spending and profit, without an accountant and without changing your billing.
+Fingertrip.biz AI shows a business owner where the business stands every day: sales, spending and profit, without an accountant and without changing your billing.
 
 Built for restaurants, hotels, pharmacies, grocery stores, salons, clinics, clothing and electronics shops, hardware and building-material traders, bakeries, garages, gyms and service businesses.
 
@@ -22,7 +22,7 @@ MAIN HEADERS
 • Business setup: departments, store categories, fixed costs, videos, backup
 
 PHOTO OF EVERY BILL
-Take a photo of a purchase bill and BizCore reads the supplier, bill number, date and total. Photograph your billing machine's day-end report and it fills sales, cash, UPI and card. Photos are read on the phone, even without internet.
+Take a photo of a purchase bill and Fingertrip.biz AI reads the supplier, bill number, date and total. Photograph your billing machine's day-end report and it fills sales, cash, UPI and card. Photos are read on the phone, even without internet.
 
 PROFIT EVERY DAY
 Sales − purchases = gross profit. Then variable, maintenance and sudden expenses, and a day's share of fixed costs like rent, electricity and salaries, give your net profit for any day, week or month.

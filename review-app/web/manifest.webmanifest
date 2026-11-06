@@ -1,2 +1,2 @@
-{ "name": "BizCore Review", "short_name": "BizCore", "start_url": "./", "display": "standalone", "background_color": "#f2f4f8", "theme_color": "#1f4fd8",
+{ "name": "Fingertrip.biz AI", "short_name": "Fingertrip", "start_url": "./", "display": "standalone", "background_color": "#f2f4f8", "theme_color": "#1f4fd8",
   "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }] }

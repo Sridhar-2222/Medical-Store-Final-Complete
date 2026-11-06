@@ -1,4 +1,6 @@
-# BizCore 3.0
+# Fingertrip.biz AI (BizCore 3.x)
+
+Android app id `biz.fingertrip.ai`. Play Store kit: `../play-store/`.
 
 **Main page → Header → Feature → Entry.** Six main headers, joined by the fingertip line:
 
