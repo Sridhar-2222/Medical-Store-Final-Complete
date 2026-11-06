@@ -1,6 +1,6 @@
 # Publishing Fingertrip.biz AI on Google Play: step by step
 
-**Files:** `release/Fingertrip-biz-AI-3.1.0.aab` (upload this), `graphics/`, `LISTING.md`, `PRIVACY-POLICY.md`,
+**Files:** `release/Fingertrip-biz-AI-3.1.1.aab` (upload this), `graphics/`, `LISTING.md`, `PRIVACY-POLICY.md`,
 `DATA-SAFETY.md`. The bundle is signed with the upload key (`BizCore-signing-key.zip`,
 kept privately; not in this repository).
 
@@ -15,7 +15,7 @@ kept privately; not in this repository).
 5. **Testing first** (required for **new personal accounts**: a closed test with at least
    **12 testers for 14 days** before production is allowed):
    Testing → Closed testing → Create track → add testers' Gmail addresses → Create release →
-   upload `Fingertrip-biz-AI-3.1.0.aab` → release notes "First release" → Review → Start rollout.
+   upload `Fingertrip-biz-AI-3.1.1.aab` → release notes "First release" → Review → Start rollout.
    Testers install from the opt-in link and keep it installed for 14 days.
 6. **App signing:** on the first upload accept **Play App Signing**. Google keeps the app's signing
    key; our key becomes the **upload key**. Keep `BizCore-signing-key.zip` safe: every future

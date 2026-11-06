@@ -210,7 +210,8 @@
   var screens = {};
   var state = {};          // values passed between pages (e.g. which customer is open)
   function screen(name, def) { screens[name] = def; }
-  function go(name, params) { state = params || {}; if (location.hash === '#' + name) render(); else location.hash = name; }
+  var goPending = false;   // set while go() changes the address, so its values survive the hashchange
+  function go(name, params) { state = params || {}; if (location.hash === '#' + name) render(); else { goPending = true; location.hash = name; } }
   function route() { return (location.hash || '').replace(/^#/, '') || 'home'; }
 
   function render() {
@@ -279,7 +280,7 @@
     // messages live outside the page area, so they stay visible when the screen changes
     var tb = document.createElement('div'); tb.className = 'toasts'; tb.id = 'toasts'; document.body.appendChild(tb);
     if (native) document.documentElement.classList.add('native');
-    window.addEventListener('hashchange', function () { state.fromNav = true; render(); });
+    window.addEventListener('hashchange', function () { if (!goPending) state = {}; goPending = false; state.fromNav = true; render(); });
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a[target=_blank]');
       if (a && native && /^https?:/i.test(a.href)) { e.preventDefault(); location.href = a.href; }

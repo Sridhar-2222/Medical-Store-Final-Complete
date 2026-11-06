@@ -225,3 +225,8 @@ details.sec > .in { padding: 0 14px 14px; display: grid; gap: 10px; }
 .stmt tr.tot td { font-weight: 800; border-top: 2px solid var(--fg); }
 .stmt tr.sub td { color: var(--muted); font-size: .85rem; }
 .answer { white-space: pre-wrap; background: var(--soft); border-radius: 12px; padding: 12px; }
+/* large phone text: amounts wrap instead of pushing the page sideways */
+.feat .fig { white-space: normal; text-align: right; max-width: 42%; overflow-wrap: anywhere; }
+.item .end { white-space: normal; max-width: 45%; overflow-wrap: anywhere; }
+.row > * { min-width: 0; }
+.feat .t b, .hdr b { hyphens: auto; }

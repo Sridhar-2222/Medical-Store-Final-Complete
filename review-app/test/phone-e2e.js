@@ -44,6 +44,19 @@ const { serve } = require('./serve');
   if ((await page.$$('#pa-att .thumb')).length !== 1) throw new Error('photo not kept with the bill');
   await page.selectOption('#pa-cat', 'Vegetables'); await page.click('#pa-save'); await saved('Bill saved');
 
+  // Receipts: the photos saved above can be looked up per feature and across Accounts
+  await go('sales'); await page.click('[data-receipts="sales"]'); await page.waitForSelector('#rc-q');
+  const salesRc = (await page.$$('[data-view]')).length;
+  await go('purchases'); await page.click('[data-receipts="purchase"]'); await page.waitForSelector('#rc-q');
+  const purchRc = (await page.$$('[data-view]')).length;
+  await page.fill('#rc-q', 'FRESH'); await page.press('#rc-q', 'Enter'); await page.waitForTimeout(300);
+  const found = (await page.$$('[data-view]')).length;
+  await go('accounts'); await page.click('.feat[href="#receipts"]'); await page.waitForSelector('#rc-q');
+  const allRc = (await page.$$('[data-view]')).length;
+  step('receipts: sales ' + salesRc + ', purchases ' + purchRc + ' (search "FRESH" finds ' + found + '), all ' + allRc);
+  if (salesRc < 1 || purchRc < 1 || found < 1 || allRc < 2) throw new Error('receipts not listed');
+  await page.click('[data-view]'); await page.waitForSelector('.sheet img'); await page.click('.sheet [data-close]');
+
   // Expenses: sudden needs a reason
   await go('exp-sudden'); await page.click('#ex-add'); await page.waitForSelector('#xa-amt');
   await page.fill('#xa-amt', '2500'); await page.click('#xa-save');

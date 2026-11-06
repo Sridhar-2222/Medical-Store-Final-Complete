@@ -96,6 +96,7 @@
       feat('exp-sudden', '⚠', 'Sudden / miscellaneous', 'Emergency, breakage, one-off cash · always reviewed', money(sumKind('sudden'))) +
       feat('cash', '◍', 'Cash in hand', 'Count at close; checked against expected') +
       feat('pl', '∑', 'Profit & Loss', 'Sales − purchases − expenses − fixed share', money(month.net), month.net < 0 ? 'bad' : '') +
+      feat('receipts', '🧾', 'All receipts', 'Every photo and file saved in Accounts, searchable') +
       '</ul>';
   } });
 
@@ -109,7 +110,8 @@
       '<div class="section-title">Sales departments</div><ul class="feats">' + deps().map(function (d) {
         var v = tot(sheet, d.id) + tot(first, d.id) + tot(second, d.id);
         return '<li><a class="feat" href="#sale-add" data-dep="' + d.id + '"><span class="ic">' + esc(d.name.charAt(0).toUpperCase()) + '</span><span class="t"><b>' + esc(d.name) + '</b><span>' + (v ? 'Entered' : 'Tap to enter sales') + '</span></span><span class="fig">' + money(v) + '</span></a></li>';
-      }).join('') + '</ul><a class="btn ghost" href="#setup-depts">Rename or add departments</a>';
+      }).join('') + '</ul>' + A.receiptsButton('sales') + '<a class="btn ghost" href="#setup-depts">Rename or add departments</a>';
+    A.bindReceipts(el);
     $('#sl-date', el).onchange = function (e) { salesState.date = e.target.value || A.today(); A.render(); };
     $$('[data-dep]', el).forEach(function (a) { a.onclick = function (e) { e.preventDefault(); A.go('sale-add', { dep: a.dataset.dep, date: salesState.date }); }; });
   } });
@@ -160,7 +162,8 @@
     var pl = api.profitLoss({ from: t.slice(0, 8) + '01', to: t });
     el.innerHTML = '<a class="btn primary block" href="#purchase-add">＋ Add purchase bill (photo)</a>' +
       '<div class="today-strip">' + stat('This month', money(pl.purchases), pl.purchasePct !== null ? A.pct(pl.purchasePct) + ' of sales' : '') + stat('4-week average', pl.purchasePct4w !== null ? A.pct(pl.purchasePct4w) : '–', 'purchases as % of sales') + '</div>' +
-      '<div class="section-title">Last 60 days</div>' + billList(rows);
+      A.receiptsButton('purchase') + '<div class="section-title">Last 60 days</div>' + billList(rows);
+    A.bindReceipts(el);
     $$('[data-bill]', el).forEach(function (b) { b.onclick = function () { A.go('purchase-add', { id: b.dataset.bill }); }; });
   } });
   A.screen('purchase-add', { title: 'Purchase bill', crumb: 'Accounts › Purchases', back: 'purchases', render: function (el, st) {
@@ -198,10 +201,11 @@
       var m = rows.filter(function (e) { return e.date >= t.slice(0, 8) + '01'; }).reduce(function (a, e) { return a + e.amount; }, 0);
       el.innerHTML = '<a class="btn primary block" href="#exp-add" id="ex-add">＋ Add ' + esc(KL[kind].toLowerCase()) + '</a>' +
         (kind === 'sudden' ? '<p class="muted small">Every sudden expense appears in Reports → Alerts for review. A reason is required.</p>' : '') +
-        '<div class="today-strip">' + stat('This month', money(m)) + stat('Entries (60 days)', String(rows.length)) + '</div>' +
+        '<div class="today-strip">' + stat('This month', money(m)) + stat('Entries (60 days)', String(rows.length)) + '</div>' + A.receiptsButton(kind) +
         (rows.length ? '<ul class="list">' + rows.map(function (e) {
           return '<li><button type="button" class="item" data-x="' + e.id + '"><div class="t"><b>' + esc(e.category || 'Other') + '</b><span>' + esc(A.niceDate(e.date) + (e.vendor ? ' · ' + e.vendor : '') + (e.note ? ' · ' + e.note : '') + (e.files && e.files.length ? ' · 📷 ' + e.files.length : '')) + '</span></div><div class="end">' + money(e.amount) + '</div></button></li>';
         }).join('') + '</ul>' : A.empty('Nothing yet', ''));
+      A.bindReceipts(el);
       $('#ex-add', el).onclick = function (ev) { ev.preventDefault(); A.go('exp-add', { kind: kind }); };
       $$('[data-x]', el).forEach(function (b) { b.onclick = function () { A.go('exp-add', { kind: kind, id: b.dataset.x }); }; });
     } });
@@ -240,8 +244,9 @@
       '<ul class="list">' + mf.detail.map(function (d) {
         return '<li><button type="button" class="item" data-f="' + esc(d.name) + '"><div class="t"><b>' + esc(d.name) + '</b><span>' + (d.source === 'entered' ? 'Entered for this month' : d.source === 'usual' ? 'Usual amount (bill not entered yet)' : 'From the staff list') + '</span></div><div class="end">' + money(d.monthly) + '</div></button></li>';
       }).join('') + '</ul>' +
-      '<a class="btn primary block" href="#exp-add" id="fx-add">＋ Enter a fixed bill for ' + esc(monthName(ym)) + '</a><a class="btn ghost" href="#setup-fixed">Change usual monthly amounts</a>' +
+      '<a class="btn primary block" href="#exp-add" id="fx-add">＋ Enter a fixed bill for ' + esc(monthName(ym)) + '</a>' + A.receiptsButton('fixed') + '<a class="btn ghost" href="#setup-fixed">Change usual monthly amounts</a>' +
       (entered.length ? '<div class="section-title">Bills entered</div><ul class="list">' + entered.map(function (e) { return '<li><button type="button" class="item" data-x="' + e.id + '"><div class="t"><b>' + esc(e.category) + '</b><span>' + esc((e.vendor || '') + (e.files && e.files.length ? ' · 📷 ' + e.files.length : '')) + '</span></div><div class="end">' + money(e.amount) + '</div></button></li>'; }).join('') + '</ul>' : '');
+    A.bindReceipts(el);
     $('#fx-prev', el).onclick = function () { A.go('fixed', { month: shiftMonth(ym, -1) }); };
     $('#fx-next', el).onclick = function () { A.go('fixed', { month: shiftMonth(ym, 1) }); };
     $('#fx-add', el).onclick = function (ev) { ev.preventDefault(); A.go('exp-add', { kind: 'fixed', month: ym }); };
@@ -258,7 +263,8 @@
         return '<li class="item"><div class="t"><b>' + esc(r.name) + '</b><span>' + esc((r.role || '') + ' · monthly ' + money(r.salary)) + '</span></div><input type="number" inputmode="decimal" min="0" style="max-width:120px" data-sal="' + i + '" value="' + esc(r.paid || r.salary || '') + '" aria-label="Paid to ' + esc(r.name) + '">' + (r.paid ? '<span class="pill good">paid</span>' : '') + '</li>';
       }).join('') + '</ul>' : A.empty('No staff yet', 'Add staff under the Staff header first.', '<a class="btn primary" href="#staff-edit">Add staff</a>')) +
       (rows.length ? '<div class="grid2">' + A.field('Paid on', A.input('sy-date', 'date', A.today())) + A.field('Paid by', '<select id="sy-paid">' + A.opt(['Cash', 'Bank transfer', 'UPI']) + '</select>') + '</div>' +
-        '<div class="section-title">Salary sheet / receipts</div><div id="sy-att"></div><button type="button" class="btn primary block" id="sy-save">Save salaries for ' + esc(monthName(ym)) + '</button>' : '') + '</div>';
+        '<div class="section-title">Salary sheet / receipts</div><div id="sy-att"></div><button type="button" class="btn primary block" id="sy-save">Save salaries for ' + esc(monthName(ym)) + '</button>' : '') + '</div>' + A.receiptsButton('salaries');
+    A.bindReceipts(el);
     $('#sy-prev', el).onclick = function () { A.go('salaries', { month: shiftMonth(ym, -1) }); };
     $('#sy-next', el).onclick = function () { A.go('salaries', { month: shiftMonth(ym, 1) }); };
     if (!rows.length) return;
@@ -344,7 +350,8 @@
     var wk = rows.filter(function (e) { return e.date > R.addDays(t, -7); }).reduce(function (a, e) { return a + e.amount; }, 0);
     var lw = rows.filter(function (e) { return e.date > R.addDays(t, -14) && e.date <= R.addDays(t, -7); }).reduce(function (a, e) { return a + e.amount; }, 0);
     el.innerHTML = '<h2>' + esc(cat) + '</h2><div class="today-strip">' + stat('This week', money(wk)) + stat('Last week', money(lw)) + '</div>' +
-      '<button type="button" class="btn primary block" id="sc-add">＋ Add ' + esc(cat) + ' bill (photo)</button>' + billList(rows);
+      '<button type="button" class="btn primary block" id="sc-add">＋ Add ' + esc(cat) + ' bill (photo)</button>' + A.receiptsButton('purchase', cat) + billList(rows);
+    A.bindReceipts(el);
     $('#sc-add', el).onclick = function () { A.go('purchase-add', { cat: cat }); };
     $$('[data-bill]', el).forEach(function (b) { b.onclick = function () { A.go('purchase-add', { id: b.dataset.bill, cat: cat }); }; });
   } });
@@ -372,5 +379,80 @@
       if (A.act(function () { return api.saveStaff({ id: s ? s.id : undefined, name: A.val('se-name', el), role: A.val('se-role', el), phone: A.val('se-phone', el), salary: A.val('se-sal', el), active: $('#se-act', el) ? $('#se-act', el).checked : true, files: att.files() }); }, 'Saved')) A.go('staff');
     };
     var del = $('#se-del', el); if (del) del.onclick = function () { A.confirmSheet('Remove ' + s.name + '?', 'Remove', true).then(function (ok) { if (ok && A.act(function () { return api.removeStaff(s.id); }, 'Removed')) A.go('staff'); }); };
+  } });
+})();
+
+/* Receipts: look up every photo / file saved in a feature (sales, purchases, each expense kind,
+ * salaries, fixed costs) or across all of Accounts. */
+(function () {
+  'use strict';
+  var A = window.App, api = A.api, $ = A.$, $$ = A.$$, esc = A.esc, money = A.money, R = A.R;
+  var SCOPES = {
+    all: 'All receipts', sales: 'Sales receipts', purchase: 'Purchase bills', salaries: 'Salary receipts', fixed: 'Fixed cost bills',
+    variable: 'Variable expense receipts', maintenance: 'Maintenance receipts', sudden: 'Sudden expense receipts'
+  };
+  function matches(e, scope, cat) {
+    if (!e.files || !e.files.length) return false;
+    if (scope === 'all') return true;
+    if (scope === 'sales') return e.type === 'sale';
+    if (scope === 'purchase') return e.type === 'purchase' && (!cat || e.storeCategory === cat);
+    if (scope === 'salaries') return e.type === 'expense' && e.category === 'Salaries';
+    if (scope === 'fixed') return e.type === 'expense' && e.kind === 'fixed' && e.category !== 'Salaries';
+    return e.type === 'expense' && e.kind === scope;
+  }
+  function receiptEntries(scope, cat, from) {
+    return api.list('entries', { from: from || '', sort: '-at' }).rows.filter(function (e) { return matches(e, scope, cat); });
+  }
+  // a small button that shows how many receipts a feature has and opens them
+  A.receiptsButton = function (scope, cat) {
+    var n = receiptEntries(scope, cat).length;
+    return '<a class="btn block" href="#receipts" data-receipts="' + scope + '"' + (cat ? ' data-cat="' + esc(cat) + '"' : '') + '>🧾 ' + esc(cat ? cat + ' bills' : SCOPES[scope]) + ' (' + n + ')</a>';
+  };
+  A.bindReceipts = function (el) {
+    $$('[data-receipts]', el).forEach(function (a) { a.onclick = function (e) { e.preventDefault(); A.go('receipts', { scope: a.dataset.receipts, cat: a.dataset.cat || '' }); }; });
+  };
+  var rs = { days: 30, q: '', dep: '' };
+  A.screen('receipts', { title: 'Receipts', crumb: 'Accounts', back: 'accounts', render: function (el, st) {
+    var scope = (st && st.scope) || 'all', cat = (st && st.cat) || '';
+    if (rs.key !== scope + '|' + cat) { rs.key = scope + '|' + cat; rs.q = ''; rs.dep = ''; }   // new list: start without a search
+    var from = rs.days ? R.addDays(A.today(), -(rs.days - 1)) : '';
+    var deps = api.list('departments', { sort: 'order' }).rows;
+    var rows = receiptEntries(scope, cat, from).filter(function (e) {
+      if (rs.dep && e.departmentId !== rs.dep) return false;
+      if (!rs.q) return true;
+      var q = rs.q.toLowerCase();
+      return [e.vendor, e.billNo, e.category, e.storeCategory, e.note, e.departmentName, e.staffName].concat(e.files.map(function (f) { return f.name + ' ' + (f.text || ''); }))
+        .some(function (v) { return v && String(v).toLowerCase().indexOf(q) >= 0; });
+    });
+    var total = rows.reduce(function (a, e) { return a + e.amount; }, 0);
+    el.innerHTML = '<h2>' + esc(cat ? cat + ' bills' : SCOPES[scope]) + '</h2>' +
+      '<div class="card">' + A.seg('rc-days', [[7, '7 days'], [30, '30 days'], [90, '90 days'], [0, 'All']], rs.days) +
+      (scope === 'sales' || scope === 'all' ? A.field('Department', '<select id="rc-dep">' + A.opt(deps.map(function (d) { return { value: d.id, text: d.name }; }), rs.dep, 'All departments') + '</select>') : '') +
+      A.input('rc-q', 'search', rs.q, 'placeholder="Search supplier, bill no, text in the photo…"') + '</div>' +
+      '<p class="muted small">' + rows.length + ' receipt(s) · ' + money(total) + '</p>' +
+      (rows.length ? '<ul class="list">' + rows.map(function (e) {
+        var title = e.type === 'sale' ? (e.departmentName || 'Sales') + (e.half ? ' · ' + (e.half === 'first' ? 'morning' : 'evening') : '')
+          : e.type === 'purchase' ? (e.vendor || 'Supplier') + (e.billNo ? ' #' + e.billNo : '') : (e.staffName || e.category || 'Expense');
+        var sub = A.niceDate(e.date, true) + ' · ' + (e.type === 'sale' ? 'Sales' : e.type === 'purchase' ? (e.storeCategory || 'Purchase') : (A.api.kinds().labels[e.kind] || 'Expense') + (e.vendor ? ' · ' + e.vendor : ''));
+        return '<li class="card" style="gap:8px"><button type="button" class="item" data-open="' + e.id + '" style="border:0;padding:0"><div class="t"><b>' + esc(title) + '</b><span>' + esc(sub) + '</span></div><div class="end">' + money(e.amount) + '</div></button>' +
+          '<div class="thumbs">' + e.files.map(function (f, i) {
+            return '<div class="thumb"><button type="button" class="tview" data-view="' + e.id + ':' + i + '" aria-label="Open ' + esc(f.name) + '">' + (/^image\//.test(f.type) ? '<img data-img="' + esc(f.id) + '" alt="">' : '<span class="fic">' + (/pdf/.test(f.type) ? 'PDF' : 'FILE') + '</span>') + '</button><span class="tname">' + esc(f.name) + '</span></div>';
+          }).join('') + '</div></li>';
+      }).join('') + '</ul>' : A.empty('No receipts here yet', 'Photos and files you attach when entering ' + (scope === 'all' ? 'accounts' : SCOPES[scope].toLowerCase()) + ' appear here.'));
+    $$('[data-img]', el).forEach(function (im) { A.files.get(im.dataset.img).then(function (r) { if (r) im.src = r.data; }); });
+    var byId = {}; rows.forEach(function (e) { byId[e.id] = e; });
+    $$('[data-view]', el).forEach(function (b) { b.onclick = function () { var p = b.dataset.view.split(':'); A.files.view(byId[p[0]].files[+p[1]]); }; });
+    $$('[data-open]', el).forEach(function (b) {
+      b.onclick = function () {
+        var e = byId[b.dataset.open];
+        if (e.type === 'sale') A.go('sale-add', { dep: e.departmentId, date: e.date, half: e.half });
+        else if (e.type === 'purchase') A.go('purchase-add', { id: e.id });
+        else if (e.category === 'Salaries') A.go('salaries', { month: e.month });
+        else A.go('exp-add', { kind: e.kind, id: e.id });
+      };
+    });
+    A.onSeg($('#rc-days', el), function (v) { rs.days = +v; A.go('receipts', { scope: scope, cat: cat }); });
+    var dp = $('#rc-dep', el); if (dp) dp.onchange = function (e) { rs.dep = e.target.value; A.go('receipts', { scope: scope, cat: cat }); };
+    $('#rc-q', el).onchange = function (e) { rs.q = e.target.value; A.go('receipts', { scope: scope, cat: cat }); };
   } });
 })();
