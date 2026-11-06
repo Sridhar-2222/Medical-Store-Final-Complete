@@ -230,3 +230,15 @@ details.sec > .in { padding: 0 14px 14px; display: grid; gap: 10px; }
 .item .end { white-space: normal; max-width: 45%; overflow-wrap: anywhere; }
 .row > * { min-width: 0; }
 .feat .t b, .hdr b { hyphens: auto; }
+
+/* 3.2: "e.g." example lines, upload buttons, header names that never split mid-word */
+.eg { margin: 2px 2px 0; color: var(--muted); font-size: .86rem; font-style: italic; }
+.btn.upload { font-size: 1.02rem; font-weight: 800; }
+.hdr b { overflow-wrap: normal; word-break: normal; hyphens: manual; letter-spacing: .01em; font-size: min(1.12rem, 4.4vw); line-height: 1.15; }
+.hdr .fig { font-size: min(1rem, 4vw); }
+.item.att { flex-wrap: wrap; }
+.item.att .seg { flex: 1 1 100%; }
+.item.att .seg button { min-width: 44px; min-height: 44px; }
+label.item.chk { cursor: pointer; }
+label.item.chk input { width: 22px; height: 22px; flex: none; }
+.app-version { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 14px; }

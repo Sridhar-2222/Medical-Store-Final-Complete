@@ -659,6 +659,7 @@
           var f = e.type === 'collection' ? Object.keys(METHOD_OF).filter(function (k) { return METHOD_OF[k] === e.method; })[0] || 'otherCollection' : e.type === 'cash' ? 'cashInHand' : e.type;
           row[f] = r2((row[f] || 0) + e.amount);
           if (e.type === 'sale' && e.files && e.files.length) row.files = e.files;
+          if (e.staffId) { row.staffId = e.staffId; row.staffName = e.staffName; }
         });
         return row;
       });
@@ -678,7 +679,9 @@
               var v = r2(num(row[f]));
               if (type === 'cash' ? (row[f] === '' || row[f] === undefined || row[f] === null) : !(v > 0)) return;
               var e = normEntry({ id: row.ids && row.ids[f], type: type, date: input.date, half: half, departmentId: dep.id, amount: v, files: type === 'sale' ? row.files : undefined,
-                method: METHOD_OF[f] || (SPENDING.indexOf(type) >= 0 ? 'Cash' : ''), category: type === 'expense' ? 'Daily expenses' : '', costType: 'variable', source: 'sheet' });
+                method: METHOD_OF[f] || (SPENDING.indexOf(type) >= 0 ? 'Cash' : ''), category: type === 'expense' ? 'Daily expenses' : '', costType: 'variable', source: 'sheet',
+                staffId: row.staffId, staffName: row.staffName, time: row.time });
+              e.half = half;   // the sheet's own part of the day, whatever time the bill was written
               db().entries.push(e); ctx.touch('entries', e); count++;
             });
           });

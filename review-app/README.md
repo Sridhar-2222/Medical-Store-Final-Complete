@@ -6,14 +6,14 @@ Android app id `biz.fingertrip.ai`. Play Store kit: `../play-store/`.
 
 | Header | Features |
 |---|---|
-| **Accounts** | Sales (per department A/B/C, morning/evening, day-end report photo) · Purchases (bill photo) · Salaries · Fixed costs (spread per day) · Maintenance · Variable expenses · Sudden / miscellaneous (reason required) · Cash in hand · Profit & Loss |
-| **Customers** | Customer list → Customer vault (records, photos, files, discount, offers, messages) · Reminders due · Customer discount · Special discount · Messages · Customer video |
+| **Accounts** | 📷 Upload a bill (choose where it belongs) · Sales (per department A/B/C, morning/evening, day-end report photo) · Purchases (bill photo) · Salaries · Staff advances · Fixed costs (spread per day) · Maintenance · Variable expenses · Sudden / miscellaneous (reason required) · Daily summary · Cash in hand · Profit & Loss |
+| **Customers** | Customer list → Customer vault (records, photos, files, discount, offers, messages) · Bulk reminder (discount offer, video or own message to many customers, one WhatsApp at a time) · Reminders due (no red marks) · Customer discount · Special discount · Messages · Customer video |
 | **Store** | Store categories → purchase bills (photo or file, no item-level stock), this week vs 4-week average |
-| **Reports** | Profit & Loss · Alerts · Sales report · Spending report · Spot check · Ask AI (OpenAI or Gemini) |
-| **Staff** | Staff list with salary and ID / documents · salaries per month |
+| **Reports** | Daily summary (share on WhatsApp) · Profit & Loss · Alerts · Sales report · Spending report · Spot check · Ask AI (OpenAI or Gemini) |
+| **Staff** | Attendance (present automatically from bills each person writes; owner marks P / ½ / A / L) · Staff advances (given, recovered from salary or cash, balance per person) · Staff list with salary and ID / documents · salaries per month |
 | **Business setup** | Business details & vault title · Sales departments · Store categories · Usual fixed costs · Videos (YouTube, owner & customers) · AI · Office system · Backup · Guide |
 
-📷 **Photo** and 📎 **File** sit inside every page where a bill or account is updated. Photos are
+📷 **Photo** and 📎 **File** sit inside every page where a bill or account is updated, and every feature list starts with an **Upload bill** button. Examples are kept to one short "e.g." line per feature. Photos are
 read on the phone (offline): bills → supplier, bill no, date, total; day-end report → sales, cash,
 UPI, card, bills; visiting card / ID → name, phone. With an OpenAI or Gemini key, AI reads them
 when online. Photos are kept in the phone's file store, in backups, and on the office system.

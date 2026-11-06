@@ -14,7 +14,8 @@
     var withDisc = api.list('customers').rows.filter(function (c) { return c.discountPct > 0; }).length;
     el.innerHTML = '<p class="muted small">Every customer has a vault titled <b>' + esc(vaultTitle()) + '</b>: records, photos, files, discounts and your messages.</p><ul class="feats">' +
       feat('cust-list', '☺', 'Customer list', 'Open a customer\'s vault · add a customer', String(n)) +
-      feat('reminders', '⏰', 'Reminders due', 'Refills, services, renewals, occasions', due.length ? due.length + ' this week' : 'none', due.length ? 'down' : '') +
+      feat('bulk', '📣', 'Bulk reminder', 'Discount offer or video to many customers at once') +
+      feat('reminders', '⏰', 'Reminders due', 'e.g. refill, service date', due.length ? due.length + ' this week' : 'none') +
       feat('discounts', '%', 'Customer discount', 'Standing discount for regular customers', withDisc + ' customers') +
       feat('offers', '★', 'Special discount', 'One-off offers with a validity date', offers.length + ' active') +
       feat('messages', '✉', 'Messages', 'Everything sent to customers') +
@@ -65,7 +66,7 @@
       '<div class="card"><h2>Records</h2>' + (v.records.length ? '<ul class="list">' + v.records.map(function (r) {
         var l = recLabel(r.kind);
         return '<li><button type="button" class="item" data-r="' + r.id + '"><div class="t"><b>' + esc(l.label + (r.title ? ': ' + r.title : '')) + '</b><span>' + esc(A.niceDate(r.date, true) + (r.details ? ' · ' + r.details : '') + (r.files && r.files.length ? ' · 📷 ' + r.files.length : '')) + '</span></div>' +
-          (r.dueDate ? '<span class="pill ' + (r.done ? 'good' : r.dueDate < t ? 'bad' : 'warn') + '">' + esc(r.done ? 'done' : (l.dueLabel || 'Due') + ' ' + A.niceDate(r.dueDate)) + '</span>' : '') + '</button></li>';
+          (r.dueDate ? '<span class="pill ' + (r.done ? 'good' : 'ink') + '">' + esc(r.done ? 'done' : (l.dueLabel || 'Due') + ' ' + A.niceDate(r.dueDate)) + '</span>' : '') + '</button></li>';
       }).join('') + '</ul>' : '<p class="muted small">Nothing yet. Add their ' + esc(vcfg().records.slice(0, 3).map(function (x) { return x.label.toLowerCase(); }).join(', ')) + '.</p>') + '</div>' +
       '<div class="card"><h2>Messages</h2>' + (v.messages.length ? '<ul class="list">' + v.messages.slice(0, 30).map(function (m) { return '<li class="item"><div class="t"><span>' + esc(A.niceDate(m.date, true)) + '</span><b style="font-weight:500">' + esc(m.text) + '</b></div></li>'; }).join('') + '</ul>' : '<p class="muted small">No messages yet.</p>') + '</div>';
     var att = A.files.attach($('#v-att', el), { files: c.files || [], read: 'text', label: 'Photo' });
@@ -136,9 +137,9 @@
 
   A.screen('reminders', { title: 'Reminders due', crumb: 'Customers', back: 'customers', render: function (el) {
     var due = api.vaultDue({ days: 30 });
-    el.innerHTML = due.length ? '<ul class="list">' + due.map(function (d, i) {
-      return '<li><button type="button" class="item flag ' + (d.overdue ? 'high' : 'medium') + '" data-i="' + i + '"><div class="t"><b>' + esc(d.customer.name) + '</b><span>' + esc(d.dueLabel + ': ' + (d.record.title || recLabel(d.record.kind).label) + ' · ' + A.niceDate(d.record.dueDate) + (d.remindedOn ? ' · reminded ' + A.niceDate(d.remindedOn) : '')) + '</span></div><span class="pill ' + (d.remindedOn ? 'good' : 'warn') + '">' + (d.remindedOn ? 'Sent' : 'Send') + '</span></button></li>';
-    }).join('') + '</ul>' : A.empty('Nothing due in the next 30 days', 'Add reminder dates to vault records.');
+    el.innerHTML = '<a class="btn primary block" href="#bulk">📣 Send to many at once (bulk reminder)</a>' + (due.length ? '<ul class="list">' + due.map(function (d, i) {
+      return '<li><button type="button" class="item flag info" data-i="' + i + '"><div class="t"><b>' + esc(d.customer.name) + '</b><span>' + esc(d.dueLabel + ': ' + (d.record.title || recLabel(d.record.kind).label) + ' · ' + A.niceDate(d.record.dueDate) + (d.remindedOn ? ' · reminded ' + A.niceDate(d.remindedOn) : '')) + '</span></div><span class="pill ' + (d.remindedOn ? 'good' : 'ink') + '">' + (d.remindedOn ? 'Sent' : 'Send') + '</span></button></li>';
+    }).join('') + '</ul>' : A.empty('Nothing due in the next 30 days', 'Add reminder dates to vault records.'));
     $$('[data-i]', el).forEach(function (b) { b.onclick = function () { var d = due[+b.dataset.i]; A.go('message', { id: d.customer.id, recordId: d.record.id }); }; });
   } });
   A.screen('messages', { title: 'Messages', crumb: 'Customers', back: 'customers', render: function (el) {
@@ -187,6 +188,7 @@
   A.screen('reports', { title: 'Reports', crumb: 'Header', back: 'home', render: function (el) {
     var al = api.alerts({}), pl = al.pl;
     el.innerHTML = '<div class="today-strip">' + stat('Last 30 days: sales', money(pl.sales)) + stat('Net profit', money(pl.net), '', pl.net < 0 ? 'bad' : 'good') + '</div><ul class="feats">' +
+      feat('daily', '☰', 'Daily summary', 'One day on one page · share on WhatsApp') +
       feat('pl', '∑', 'Profit & Loss', 'Any period, fixed costs spread per day', money(pl.net), pl.net < 0 ? 'down' : '') +
       feat('alerts', '⚠', 'Alerts', 'What needs checking', String(al.flags.length), al.flags.some(function (f) { return f.severity === 'high'; }) ? 'down' : '') +
       feat('rep-sales', '₹', 'Sales report', 'By department, day-on-day change, morning vs evening, walk-ins') +
@@ -281,7 +283,7 @@
       feat('setup-ai', '✦', 'AI', (s.aiProvider === 'openai' ? 'OpenAI' : 'Google Gemini') + (A.lsGet(A.AIKEY) ? ' · key added' : ' · no key (optional)')) +
       feat('sync', '⇄', 'Office system', A.sync.url ? 'Connected' : 'This phone only') +
       feat('backup', '⇩', 'Backup & data', 'Save, restore, Excel, example data') +
-      feat('guide', '?', 'Guide for my business', A.P().name) + '</ul>';
+      feat('guide', '?', 'Guide for my business', A.P().name) + '</ul><p class="app-version">Fingertrip.biz AI version ' + esc(A.VERSION) + '</p>';
   } });
   A.screen('setup-biz', { title: 'Business details', crumb: 'Business setup', back: 'setup', render: function (el) {
     var s = A.S();

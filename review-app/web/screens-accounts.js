@@ -16,6 +16,19 @@
     var id = ytId(url); if (!id) return '';
     return '<a class="video" href="https://www.youtube.com/watch?v=' + id + '" target="_blank" rel="noopener"><img src="https://img.youtube.com/vi/' + id + '/hqdefault.jpg" alt=""><span class="t"><b>▶ ' + esc(title) + '</b><br><span class="muted small">' + esc(sub) + '</span></span></a>';
   }
+  // "Bill written by": the staff member who wrote a manual bill. Used for attendance; remembered on this phone.
+  var LASTSTAFF = 'bizreview-last-staff';
+  function staffPick(id, sel) {
+    var rows = api.list('staff', { sort: 'name' }).rows.filter(function (x) { return x.active !== false || x.id === sel; });
+    if (!rows.length) return '';
+    var cur = sel === undefined ? (A.lsGet(LASTSTAFF) || '') : sel;
+    return A.field('Bill written by (counts as present)', '<select id="' + id + '">' + A.opt(rows.map(function (x) { return { value: x.id, text: x.name }; }), cur, 'Not recorded') + '</select>');
+  }
+  function staffOf(id, el) { var v = A.val(id, el); if (v !== '' || $('#' + id, el)) A.lsSet(LASTSTAFF, v); var st = v ? api.get('staff', v) : null; return { staffId: st ? st.id : '', staffName: st ? st.name : '' }; }
+  function nowTime() { var d = new Date(); return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes(); }
+  function eg(key) { var x = api.kinds().featureExamples[key]; return x ? '<p class="eg">' + esc(x) + '</p>' : ''; }
+  function uploadBtn(id, text) { return '<button type="button" class="btn upload block" id="' + id + '">📷 ' + esc(text || 'Upload bill (photo / file)') + '</button>'; }
+  A.staffPick = staffPick; A.staffOf = staffOf; A.eg = eg; A.uploadBtn = uploadBtn;
   A.stat = stat; A.feat = feat; A.ytId = ytId; A.videoCard = videoCard; A.monthName = monthName; A.shiftMonth = shiftMonth;
 
   // ================================================================ MAIN PAGE
@@ -85,20 +98,38 @@
     var sumKind = function (k) { return api.list('entries', { type: 'expense', from: m0, to: t }).rows.filter(function (e) { return e.kind === k; }).reduce(function (a, e) { return a + e.amount; }, 0); };
     var fixedM = api.monthlyFixed(monthOf(t));
     var sal = api.salaries(monthOf(t)), salPaid = sal.filter(function (x) { return x.paid; }).length;
-    el.innerHTML = '<div class="today-strip">' + stat('This month: sales', money(month.sales)) + stat('Net profit', money(month.net), month.margin !== null ? A.pct(month.margin) + ' of sales' : '', month.net < 0 ? 'bad' : 'good') + '</div>' +
+    var FX = api.kinds().featureExamples, adv = api.advanceBalances();
+    el.innerHTML = uploadBtn('ac-up', 'Upload a bill (photo / file)') + '<div class="today-strip">' + stat('This month: sales', money(month.sales)) + stat('Net profit', money(month.net), month.margin !== null ? A.pct(month.margin) + ' of sales' : '', month.net < 0 ? 'bad' : 'good') + '</div>' +
       '<ul class="feats">' +
-      feat('sales', '₹', 'Sales', 'By department, morning / evening · photo of day-end report', money(today.sales) + ' today') +
-      feat('purchases', '🧾', 'Purchases', 'Photo of every purchase bill', money(month.purchases) + ' this month') +
+      feat('sales', '₹', 'Sales', FX.sales, money(today.sales) + ' today') +
+      feat('purchases', '🧾', 'Purchases', FX.purchases + ' · bill photo', money(month.purchases) + ' this month') +
       feat('salaries', '◎', 'Salaries', salPaid + ' of ' + sal.length + ' paid for ' + monthName(monthOf(t)), money(sal.reduce(function (a, x) { return a + x.paid; }, 0))) +
-      feat('fixed', '▣', 'Fixed costs', 'Rent, electricity, internet, EMI · spread per day', money(fixedM.total) + '/month') +
-      feat('exp-maintenance', '🛠', 'Maintenance', 'Repairs, AMC, servicing', money(sumKind('maintenance'))) +
-      feat('exp-variable', '↕', 'Variable expenses', 'Packing, fuel, commission, daily wages', money(sumKind('variable'))) +
-      feat('exp-sudden', '⚠', 'Sudden / miscellaneous', 'Emergency, breakage, one-off cash · always reviewed', money(sumKind('sudden'))) +
+      feat('advances', '⇄', 'Staff advances', FX.advances, money(adv.outstanding) + ' to recover') +
+      feat('fixed', '▣', 'Fixed costs', FX.fixed + ' · spread per day', money(fixedM.total) + '/month') +
+      feat('exp-maintenance', '🛠', 'Maintenance', FX.maintenance, money(sumKind('maintenance'))) +
+      feat('exp-variable', '↕', 'Variable expenses', FX.variable, money(sumKind('variable'))) +
+      feat('exp-sudden', '⚠', 'Sudden / miscellaneous', FX.sudden + ' · always reviewed', money(sumKind('sudden'))) +
+      feat('daily', '☰', 'Daily summary', 'One day on one page · share on WhatsApp') +
       feat('cash', '◍', 'Cash in hand', 'Count at close; checked against expected') +
       feat('pl', '∑', 'Profit & Loss', 'Sales − purchases − expenses − fixed share', money(month.net), month.net < 0 ? 'bad' : '') +
       feat('receipts', '🧾', 'All receipts', 'Every photo and file saved in Accounts, searchable') +
       '</ul>';
+    $('#ac-up', el).onclick = function () { pickKind(); };
   } });
+  // "Upload a bill" from the Accounts page: choose where the bill belongs, then its entry page opens.
+  function pickKind() {
+    var back = document.createElement('div'); back.className = 'sheet-back';
+    var K = [['purchase', 'Purchase bill'], ['fixed', 'Fixed cost (rent, electricity…)'], ['maintenance', 'Maintenance'], ['variable', 'Variable expense'], ['sudden', 'Sudden / miscellaneous'], ['advance', 'Staff advance'], ['sale', 'Sales / day-end report']];
+    back.innerHTML = '<div class="sheet" role="dialog" aria-modal="true"><b>Which bill is it?</b><div class="stack">' + K.map(function (k) { return '<button type="button" class="btn block" data-k="' + k[0] + '">' + esc(k[1]) + '</button>'; }).join('') + '</div><button type="button" class="btn ghost block" id="pk-x">Cancel</button></div>';
+    document.body.appendChild(back);
+    $('#pk-x', back).onclick = function () { back.remove(); };
+    back.addEventListener('click', function (e) { if (e.target === back) back.remove(); });
+    $$('[data-k]', back).forEach(function (b) { b.onclick = function () {
+      back.remove(); var k = b.dataset.k;
+      if (k === 'purchase') A.go('purchase-add'); else if (k === 'sale') A.go('sale-add', {}); else if (k === 'advance') A.go('advance-add', {}); else A.go('exp-add', { kind: k });
+    }; });
+  }
+  A.pickKind = pickKind;
 
   // ---------------------------------------------------------------- Sales
   var salesState = { date: '' };
@@ -106,13 +137,14 @@
     if (!salesState.date) salesState.date = A.today();
     var sheet = api.getDailySheet(salesState.date, ''), first = api.getDailySheet(salesState.date, 'first'), second = api.getDailySheet(salesState.date, 'second');
     var tot = function (rows, id) { var r = rows.filter(function (x) { return x.departmentId === id; })[0] || {}; return (r.sale || 0); };
-    el.innerHTML = '<div class="card"><div class="grid2">' + A.field('Date', A.input('sl-date', 'date', salesState.date)) + '<div></div></div></div>' +
+    el.innerHTML = uploadBtn('sl-up', 'Upload day-end report / bill page') + eg('sales') + '<div class="card"><div class="grid2">' + A.field('Date', A.input('sl-date', 'date', salesState.date)) + '<div></div></div></div>' +
       '<div class="section-title">Sales departments</div><ul class="feats">' + deps().map(function (d) {
         var v = tot(sheet, d.id) + tot(first, d.id) + tot(second, d.id);
         return '<li><a class="feat" href="#sale-add" data-dep="' + d.id + '"><span class="ic">' + esc(d.name.charAt(0).toUpperCase()) + '</span><span class="t"><b>' + esc(d.name) + '</b><span>' + (v ? 'Entered' : 'Tap to enter sales') + '</span></span><span class="fig">' + money(v) + '</span></a></li>';
       }).join('') + '</ul>' + A.receiptsButton('sales') + '<a class="btn ghost" href="#setup-depts">Rename or add departments</a>';
     A.bindReceipts(el);
     $('#sl-date', el).onchange = function (e) { salesState.date = e.target.value || A.today(); A.render(); };
+    $('#sl-up', el).onclick = function () { var d0 = deps()[0]; A.go('sale-add', { dep: d0 && d0.id, date: salesState.date }); };
     $$('[data-dep]', el).forEach(function (a) { a.onclick = function (e) { e.preventDefault(); A.go('sale-add', { dep: a.dataset.dep, date: salesState.date }); }; });
   } });
   A.screen('sale-add', { title: 'Enter sales', crumb: 'Accounts › Sales', back: 'sales', render: function (el, st) {
@@ -125,7 +157,7 @@
       A.field('Part of day', '<select id="sa-half">' + A.opt([{ value: '', text: 'Whole day' }, { value: 'first', text: 'Morning' }, { value: 'second', text: 'Evening' }], half) + '</select>') + '</div>' +
       '<div class="section-title">Day-end report or bill book page</div><div id="sa-att"></div>' +
       '<div class="grid2">' + F.map(function (f) { return A.field(f[1], A.input('sa-' + f[0], 'number', row[f[0]] || '', 'min="0"')); }).join('') + '</div>' +
-      '<div id="sa-gap"></div><button type="button" class="btn primary block" id="sa-save">Save sales</button></div>';
+      staffPick('sa-staff', row.staffId) + '<div id="sa-gap"></div><button type="button" class="btn primary block" id="sa-save">Save sales</button></div>';
     var att = A.files.attach($('#sa-att', el), { files: row.files || [], read: 'report', label: 'Photo of day-end report', onRead: function (o) {
       if (o.date) $('#sa-date', el).value = o.date;
       [['sale', o.sale], ['cash', o.cash], ['upi', o.upi], ['card', o.card], ['otherCollection', o.other], ['walkin', o.walkins]].forEach(function (x) { if (x[1]) $('#sa-' + x[0], el).value = x[1]; });
@@ -144,6 +176,7 @@
         var r = api.getDailySheet(date2, half2).filter(function (x) { return x.departmentId === d.id; })[0] || { departmentId: d.id };
         F.forEach(function (f) { r[f[0]] = A.val('sa-' + f[0], el); });
         r.files = att.files();
+        var who = staffOf('sa-staff', el); r.staffId = who.staffId; r.staffName = who.staffName; if (who.staffId && date2 === A.today()) r.time = nowTime();
         return api.saveDailySheet({ date: date2, half: half2, rows: [r] });
       }, 'Sales saved');
       if (ok) { salesState.date = date2; A.go('sales'); }
@@ -160,7 +193,7 @@
   A.screen('purchases', { title: 'Purchases', crumb: 'Accounts', back: 'accounts', render: function (el) {
     var t = A.today(), rows = api.list('entries', { type: 'purchase', from: R.addDays(t, -59), to: t, sort: '-at', limit: 200 }).rows;
     var pl = api.profitLoss({ from: t.slice(0, 8) + '01', to: t });
-    el.innerHTML = '<a class="btn primary block" href="#purchase-add">＋ Add purchase bill (photo)</a>' +
+    el.innerHTML = '<a class="btn primary upload block" href="#purchase-add">📷 Upload purchase bill (photo / file)</a>' + eg('purchases') +
       '<div class="today-strip">' + stat('This month', money(pl.purchases), pl.purchasePct !== null ? A.pct(pl.purchasePct) + ' of sales' : '') + stat('4-week average', pl.purchasePct4w !== null ? A.pct(pl.purchasePct4w) : '–', 'purchases as % of sales') + '</div>' +
       A.receiptsButton('purchase') + '<div class="section-title">Last 60 days</div>' + billList(rows);
     A.bindReceipts(el);
@@ -174,7 +207,7 @@
       A.field('Bill date', A.input('pa-date', 'date', e ? e.date : A.today())) + A.field('Total ₹', A.input('pa-total', 'number', e ? e.amount : '', 'min="0"')) +
       A.field('Store category', '<select id="pa-cat">' + A.opt(cats, e ? e.storeCategory : (st && st.cat) || cats[0]) + '</select>') +
       A.field('Paid by', '<select id="pa-paid">' + A.opt([{ value: 'Credit', text: 'Credit (pay later)' }, 'Cash', 'UPI', 'Card', 'Bank transfer'], e ? e.method : 'Credit') + '</select>') +
-      '<label class="f full">Note' + A.input('pa-note', 'text', e ? e.note : '') + '</label></div><div id="pa-check"></div>' +
+      '<label class="f full">Note' + A.input('pa-note', 'text', e ? e.note : '') + '</label></div>' + staffPick('pa-staff', e ? e.staffId : undefined) + '<div id="pa-check"></div>' +
       '<div class="row"><button type="button" class="btn primary grow" id="pa-save">Save bill</button>' + (e ? '<button type="button" class="btn danger" id="pa-del">Delete</button>' : '') + '</div></div>';
     var att = A.files.attach($('#pa-att', el), { files: e ? e.files : [], read: 'bill', label: 'Photo of bill', onRead: function (o) {
       if (o.vendor) $('#pa-vendor', el).value = o.vendor; if (o.billNo) $('#pa-bill', el).value = o.billNo;
@@ -188,7 +221,8 @@
     ['pa-vendor', 'pa-bill'].forEach(function (id) { $('#' + id, el).oninput = check; }); check();
     $('#pa-save', el).onclick = function () {
       if (A.act(function () { return api.saveEntry({ id: e ? e.id : undefined, type: 'purchase', vendor: A.val('pa-vendor', el), billNo: A.val('pa-bill', el), date: A.val('pa-date', el), amount: A.val('pa-total', el),
-        storeCategory: A.val('pa-cat', el), method: A.val('pa-paid', el), note: A.val('pa-note', el), files: att.files(), source: e ? e.source : 'bill' }); }, 'Bill saved')) A.go(st && st.cat ? 'store-cat' : 'purchases', { cat: st && st.cat });
+        storeCategory: A.val('pa-cat', el), method: A.val('pa-paid', el), note: A.val('pa-note', el), files: att.files(), source: e ? e.source : 'bill',
+        staffId: staffOf('pa-staff', el).staffId, staffName: staffOf('pa-staff', el).staffName, time: e ? e.time : (A.val('pa-date', el) === A.today() ? nowTime() : '') }); }, 'Bill saved')) A.go(st && st.cat ? 'store-cat' : 'purchases', { cat: st && st.cat });
     };
     var del = $('#pa-del', el); if (del) del.onclick = function () { A.confirmSheet('Delete this bill?', 'Delete', true).then(function (ok) { if (ok && A.act(function () { return api.removeEntry(e.id); }, 'Deleted')) A.go('purchases'); }); };
   } });
@@ -199,7 +233,7 @@
     A.screen('exp-' + kind, { title: KL[kind], crumb: 'Accounts', back: 'accounts', render: function (el) {
       var t = A.today(), rows = api.list('entries', { type: 'expense', from: R.addDays(t, -59), to: t, sort: '-at' }).rows.filter(function (e) { return e.kind === kind; });
       var m = rows.filter(function (e) { return e.date >= t.slice(0, 8) + '01'; }).reduce(function (a, e) { return a + e.amount; }, 0);
-      el.innerHTML = '<a class="btn primary block" href="#exp-add" id="ex-add">＋ Add ' + esc(KL[kind].toLowerCase()) + '</a>' +
+      el.innerHTML = '<a class="btn primary upload block" href="#exp-add" id="ex-add">📷 Upload bill / add ' + esc(KL[kind].toLowerCase()) + '</a>' + eg(kind) +
         (kind === 'sudden' ? '<p class="muted small">Every sudden expense appears in Reports → Alerts for review. A reason is required.</p>' : '') +
         '<div class="today-strip">' + stat('This month', money(m)) + stat('Entries (60 days)', String(rows.length)) + '</div>' + A.receiptsButton(kind) +
         (rows.length ? '<ul class="list">' + rows.map(function (e) {
@@ -215,12 +249,12 @@
     var ex = api.kinds().examples[kind];
     var cat = e ? e.category : (st && st.category) || '';
     el.innerHTML = '<div class="card"><h2>' + esc(KL[kind]) + '</h2>' +
-      A.field('What for', A.seg('xa-cat', ex.map(function (c) { return [c, c]; }), cat)) + A.field('Or type it', A.input('xa-cat2', 'text', ex.indexOf(cat) < 0 ? cat : '')) +
+      A.field('What for (examples)', A.seg('xa-cat', ex.map(function (c) { return [c, 'e.g. ' + c]; }), cat)) + A.field('Or type it', A.input('xa-cat2', 'text', ex.indexOf(cat) < 0 ? cat : '')) +
       '<div class="section-title">Bill / voucher</div><div id="xa-att"></div>' +
       '<div class="grid2">' + A.field(kind === 'fixed' ? 'Amount for the month ₹' : 'Amount ₹', A.input('xa-amt', 'number', e ? e.amount : '', 'min="0"')) +
       (kind === 'fixed' ? A.field('For month', A.input('xa-month', 'month', e ? e.month : (st && st.month) || monthOf())) : A.field('Date', A.input('xa-date', 'date', e ? e.date : A.today()))) +
       A.field('Paid to', A.input('xa-to', 'text', e ? e.vendor : '')) + A.field('Paid by', '<select id="xa-paid">' + A.opt(['Cash', 'UPI', 'Card', 'Bank transfer', 'Credit'], e ? e.method : 'Cash') + '</select>') +
-      '<label class="f full">' + (kind === 'sudden' ? 'Reason (required)' : 'Note') + A.input('xa-note', 'text', e ? e.note : '') + '</label></div>' +
+      '<label class="f full">' + (kind === 'sudden' ? 'Reason (required)' : 'Note') + A.input('xa-note', 'text', e ? e.note : '') + '</label></div>' + (kind === 'fixed' ? '' : staffPick('xa-staff', e ? e.staffId : undefined)) +
       '<div class="row"><button type="button" class="btn primary grow" id="xa-save">Save</button>' + (e ? '<button type="button" class="btn danger" id="xa-del">Delete</button>' : '') + '</div></div>';
     A.onSeg($('#xa-cat', el), function (v) { cat = v; $('#xa-cat2', el).value = ''; });
     var att = A.files.attach($('#xa-att', el), { files: e ? e.files : [], read: 'bill', label: 'Photo of bill', onRead: function (o) {
@@ -230,7 +264,8 @@
       var c = A.val('xa-cat2', el).trim() || cat;
       var month = kind === 'fixed' ? A.val('xa-month', el) : '';
       if (A.act(function () { return api.saveEntry({ id: e ? e.id : undefined, type: 'expense', kind: kind, category: c, amount: A.val('xa-amt', el), month: month, date: kind === 'fixed' ? (month ? month + '-01' : A.today()) : A.val('xa-date', el),
-        vendor: A.val('xa-to', el), method: A.val('xa-paid', el), note: A.val('xa-note', el), files: att.files() }); }, 'Saved')) A.go(kind === 'fixed' ? 'fixed' : 'exp-' + kind, { month: month });
+        vendor: A.val('xa-to', el), method: A.val('xa-paid', el), note: A.val('xa-note', el), files: att.files(),
+        staffId: staffOf('xa-staff', el).staffId, staffName: staffOf('xa-staff', el).staffName, time: e ? e.time : (kind !== 'fixed' && A.val('xa-date', el) === A.today() ? nowTime() : '') }); }, 'Saved')) A.go(kind === 'fixed' ? 'fixed' : 'exp-' + kind, { month: month });
     };
     var del = $('#xa-del', el); if (del) del.onclick = function () { A.confirmSheet('Delete this expense?', 'Delete', true).then(function (ok) { if (ok && A.act(function () { return api.removeEntry(e.id); }, 'Deleted')) A.go(kind === 'fixed' ? 'fixed' : 'exp-' + kind); }); };
   } });
@@ -244,7 +279,7 @@
       '<ul class="list">' + mf.detail.map(function (d) {
         return '<li><button type="button" class="item" data-f="' + esc(d.name) + '"><div class="t"><b>' + esc(d.name) + '</b><span>' + (d.source === 'entered' ? 'Entered for this month' : d.source === 'usual' ? 'Usual amount (bill not entered yet)' : 'From the staff list') + '</span></div><div class="end">' + money(d.monthly) + '</div></button></li>';
       }).join('') + '</ul>' +
-      '<a class="btn primary block" href="#exp-add" id="fx-add">＋ Enter a fixed bill for ' + esc(monthName(ym)) + '</a>' + A.receiptsButton('fixed') + '<a class="btn ghost" href="#setup-fixed">Change usual monthly amounts</a>' +
+      '<a class="btn primary upload block" href="#exp-add" id="fx-add">📷 Upload fixed bill for ' + esc(monthName(ym)) + '</a>' + eg('fixed') + A.receiptsButton('fixed') + '<a class="btn ghost" href="#setup-fixed">Change usual monthly amounts</a>' +
       (entered.length ? '<div class="section-title">Bills entered</div><ul class="list">' + entered.map(function (e) { return '<li><button type="button" class="item" data-x="' + e.id + '"><div class="t"><b>' + esc(e.category) + '</b><span>' + esc((e.vendor || '') + (e.files && e.files.length ? ' · 📷 ' + e.files.length : '')) + '</span></div><div class="end">' + money(e.amount) + '</div></button></li>'; }).join('') + '</ul>' : '');
     A.bindReceipts(el);
     $('#fx-prev', el).onclick = function () { A.go('fixed', { month: shiftMonth(ym, -1) }); };
@@ -258,7 +293,7 @@
   A.screen('salaries', { title: 'Salaries', crumb: 'Accounts', back: 'accounts', render: function (el, st) {
     var ym = (st && st.month) || monthOf(), rows = api.salaries(ym);
     el.innerHTML = '<div class="card"><div class="row"><button type="button" class="btn small" id="sy-prev">‹</button><h2 class="grow" style="text-align:center">' + esc(monthName(ym)) + '</h2><button type="button" class="btn small" id="sy-next">›</button></div>' +
-      '<p class="muted small">Salaries are a fixed cost: the month\'s total is spread over its days in Profit & Loss.</p>' +
+      eg('salaries') + '<p class="muted small">Salaries are a fixed cost: the month\'s total is spread over its days in Profit & Loss. Advances are kept separately under Staff advances.</p>' +
       (rows.length ? '<ul class="list">' + rows.map(function (r, i) {
         return '<li class="item"><div class="t"><b>' + esc(r.name) + '</b><span>' + esc((r.role || '') + ' · monthly ' + money(r.salary)) + '</span></div><input type="number" inputmode="decimal" min="0" style="max-width:120px" data-sal="' + i + '" value="' + esc(r.paid || r.salary || '') + '" aria-label="Paid to ' + esc(r.name) + '">' + (r.paid ? '<span class="pill good">paid</span>' : '') + '</li>';
       }).join('') + '</ul>' : A.empty('No staff yet', 'Add staff under the Staff header first.', '<a class="btn primary" href="#staff-edit">Add staff</a>')) +
@@ -337,7 +372,7 @@
   A.screen('store', { title: 'Store', crumb: 'Header', back: 'home', render: function (el) {
     var t = A.today(), cats = api.storeCategories();
     var sumCat = function (c, from, to) { return api.list('entries', { type: 'purchase', from: from, to: to }).rows.filter(function (e) { return (e.storeCategory || '') === c; }).reduce(function (a, e) { return a + e.amount; }, 0); };
-    el.innerHTML = '<a class="btn primary block" href="#purchase-add">＋ Add purchase bill (photo)</a><p class="muted small">Only bills are kept here, no item-by-item stock. Each category shows this week against the 4-week average.</p>' +
+    el.innerHTML = '<a class="btn primary upload block" href="#purchase-add">📷 Upload store bill (photo / file)</a><p class="muted small">Only bills are kept here, no item-by-item stock. Each category shows this week against the 4-week average.</p>' +
       '<ul class="feats">' + cats.map(function (c) {
         var wk = sumCat(c, R.addDays(t, -6), t), avg = sumCat(c, R.addDays(t, -34), R.addDays(t, -7)) / 4;
         return '<li><a class="feat" href="#store-cat" data-cat="' + esc(c) + '"><span class="ic">▦</span><span class="t"><b>' + esc(c) + '</b><span>4-week average ' + money(avg) + ' a week</span></span><span class="fig ' + (avg && wk > avg * 1.3 ? 'down' : '') + '">' + money(wk) + '</span></a></li>';
@@ -350,7 +385,7 @@
     var wk = rows.filter(function (e) { return e.date > R.addDays(t, -7); }).reduce(function (a, e) { return a + e.amount; }, 0);
     var lw = rows.filter(function (e) { return e.date > R.addDays(t, -14) && e.date <= R.addDays(t, -7); }).reduce(function (a, e) { return a + e.amount; }, 0);
     el.innerHTML = '<h2>' + esc(cat) + '</h2><div class="today-strip">' + stat('This week', money(wk)) + stat('Last week', money(lw)) + '</div>' +
-      '<button type="button" class="btn primary block" id="sc-add">＋ Add ' + esc(cat) + ' bill (photo)</button>' + A.receiptsButton('purchase', cat) + billList(rows);
+      '<button type="button" class="btn primary upload block" id="sc-add">📷 Upload ' + esc(cat) + ' bill (photo / file)</button>' + A.receiptsButton('purchase', cat) + billList(rows);
     A.bindReceipts(el);
     $('#sc-add', el).onclick = function () { A.go('purchase-add', { cat: cat }); };
     $$('[data-bill]', el).forEach(function (b) { b.onclick = function () { A.go('purchase-add', { id: b.dataset.bill, cat: cat }); }; });
@@ -360,7 +395,12 @@
   A.screen('staff', { title: 'Staff', crumb: 'Header', back: 'home', render: function (el) {
     var rows = api.list('staff', { sort: 'name' }).rows, ym = monthOf();
     var sal = api.salaries(ym);
-    el.innerHTML = '<div class="row"><a class="btn primary grow" href="#staff-edit">＋ Add staff</a><a class="btn grow" href="#salaries">Salaries for ' + esc(monthName(ym)) + '</a></div>' +
+    var att = api.attendanceDay(A.today()), here = att.filter(function (x) { return x.status === 'present' || x.status === 'half'; }).length, adv = api.advanceBalances();
+    el.innerHTML = '<ul class="feats">' +
+      feat('attendance', '✓', 'Attendance', 'From bills each person writes · mark the rest', here + ' of ' + att.length + ' present today') +
+      feat('advances', '⇄', 'Staff advances', api.kinds().featureExamples.advances, money(adv.outstanding) + ' to recover') +
+      feat('salaries', '◎', 'Salaries', 'Pay for ' + monthName(ym)) + '</ul>' +
+      '<div class="row"><a class="btn primary grow" href="#staff-edit">＋ Add staff</a></div>' +
       (rows.length ? '<ul class="list">' + rows.map(function (s) {
         var p = sal.filter(function (x) { return x.staffId === s.id; })[0];
         return '<li><button type="button" class="item" data-s="' + s.id + '"><div class="t"><b>' + esc(s.name) + (s.active === false ? ' (left)' : '') + '</b><span>' + esc([s.role, s.phone, 'monthly ' + money(s.salary), (s.files || []).length ? '📎 ' + s.files.length : ''].filter(Boolean).join(' · ')) + '</span></div>' + (p && p.paid ? '<span class="pill good">paid</span>' : '<span class="pill">not paid</span>') + '</button></li>';

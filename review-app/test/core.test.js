@@ -185,3 +185,89 @@ test('customer discount, special offers and files in the vault', () => {
   const v = a.vaultByToken(tok);
   assert.equal(v.discountPct, 5); assert.equal(v.offers.length, 1); assert.equal(v.files.length, 1); assert.equal(v.records[0].files.length, 1);
 });
+
+test('examples are minimal: two quick picks per expense kind and one "e.g." line per feature', () => {
+  for (const k of Object.keys(ACC.KIND_EXAMPLES)) assert.equal(ACC.KIND_EXAMPLES[k].length, 2, k);
+  for (const k of ['sales', 'purchases', 'salaries', 'advances', 'fixed', 'maintenance', 'variable', 'sudden']) assert.match(ACC.FEATURE_EXAMPLES[k], /^e\.g\. /, k);
+  const a = fresh('restaurant', true);                       // example data still loads with the short lists
+  assert.ok(a.list('entries').total > 100);
+});
+
+test('staff advances: given and recovered, balance per person, not part of profit', () => {
+  const a = fresh();
+  const st = a.saveStaff({ name: 'Ravi', salary: 15000 });
+  const before = a.profitLoss({ from: TODAY, to: TODAY }).net;
+  a.saveAdvance({ staffId: st.id, kind: 'given', amount: 3000, date: Y, note: 'Festival', files: [{ id: 'slip01', name: 'slip.jpg', type: 'image/jpeg' }] });
+  a.saveAdvance({ staffId: st.id, kind: 'recovered', how: 'salary', amount: 1000, date: TODAY });
+  const b = a.advanceBalances();
+  assert.equal(b.rows[0].given, 3000); assert.equal(b.rows[0].recovered, 1000); assert.equal(b.rows[0].balance, 2000); assert.equal(b.outstanding, 2000);
+  assert.equal(a.profitLoss({ from: TODAY, to: TODAY }).net, before);
+  assert.equal(a.list('advances').rows.find((x) => x.kind === 'recovered').how, 'salary');
+  assert.throws(() => a.saveAdvance({ staffId: st.id, amount: 0, date: TODAY }), /more than zero/);
+  assert.deepEqual(a.removeStaff(st.id), { deactivated: true });     // history kept
+});
+
+test('attendance comes from bills each person wrote; the owner\'s mark wins', () => {
+  const a = fresh();
+  const ravi = a.saveStaff({ name: 'Ravi', salary: 15000 }), lak = a.saveStaff({ name: 'Lakshmi', salary: 12000 }), anil = a.saveStaff({ name: 'Anil', salary: 10000 });
+  a.saveEntry({ type: 'purchase', amount: 900, date: TODAY, time: '09:40', staffId: ravi.id, staffName: 'Ravi', vendor: 'City Wholesale' });
+  a.saveDailySheet({ date: TODAY, half: '', rows: [{ departmentId: dep(a).id, sale: 5000, cash: 5000, staffId: ravi.id, staffName: 'Ravi', time: '21:10' }] });
+  a.saveSalaries({ month: '2026-11', rows: [{ staffId: lak.id, amount: 12000, paidOn: TODAY }] });   // a salary is not a bill
+  a.markAttendance({ staffId: anil.id, date: TODAY, status: 'leave', note: 'Sick' });
+  const day = Object.fromEntries(a.attendanceDay(TODAY).map((x) => [x.name, x]));
+  assert.equal(day.Ravi.status, 'present'); assert.equal(day.Ravi.source, 'bills'); assert.equal(day.Ravi.first, '09:40'); assert.equal(day.Ravi.last, '21:10');
+  assert.equal(day.Lakshmi.status, ''); assert.equal(day.Anil.status, 'leave');
+  a.markAttendance({ staffId: ravi.id, date: TODAY, status: 'half' });
+  assert.equal(a.attendanceDay(TODAY).find((x) => x.name === 'Ravi').status, 'half');
+  a.markAttendance({ staffId: ravi.id, date: TODAY, status: '' });                                  // back to "from bills"
+  assert.equal(a.attendanceDay(TODAY).find((x) => x.name === 'Ravi').source, 'bills');
+  assert.equal(a.getDailySheet(TODAY, '')[0].staffId, ravi.id);
+  const m = a.attendanceMonth('2026-11');
+  assert.equal(m.days.length, 6); assert.equal(m.rows.find((r) => r.name === 'Anil').leave, 1);
+});
+
+test('daily summary adds up the day and is ready to share', () => {
+  const a = fresh();
+  const st = a.saveStaff({ name: 'Ravi', salary: 15000 });
+  a.saveDailySheet({ date: TODAY, half: '', rows: [{ departmentId: dep(a).id, sale: 8000, cash: 3000, upi: 5000, walkin: 40, staffId: st.id, staffName: 'Ravi' }] });
+  a.saveEntry({ type: 'purchase', amount: 2000, date: TODAY, files: [{ id: 'bill01', name: 'b.jpg', type: 'image/jpeg' }] });
+  a.saveEntry({ type: 'purchase', amount: 500, date: TODAY });
+  a.saveEntry({ type: 'expense', kind: 'variable', category: 'Transport', amount: 300, date: TODAY });
+  a.saveAdvance({ staffId: st.id, amount: 1000, date: TODAY });
+  const x = a.dailySummary(TODAY);
+  assert.equal(x.sales, 8000); assert.equal(x.walkins, 40); assert.equal(x.collected, 8000);
+  assert.equal(x.purchases, 2500); assert.equal(x.purchaseBills, 2); assert.equal(x.billsWithPhoto, 1);
+  assert.equal(x.variable, 300); assert.equal(x.advancesGiven, 1000); assert.deepEqual(x.present, ['Ravi']);
+  assert.equal(x.net, a.profitLoss({ from: TODAY, to: TODAY }).net);
+  assert.match(x.text, /Sales: ₹8,000 \(40 customers\)/); assert.match(x.text, /2 bill\(s\), 1 with photo/); assert.match(x.text, /Staff present: Ravi/);
+});
+
+test('bulk reminder: discount or video to many customers, invalid phones skipped', () => {
+  const a = fresh('pharmacy');
+  const c1 = a.saveCustomer({ name: 'Asha', phone: '98765 00011', discountPct: 5 });
+  const c2 = a.saveCustomer({ name: 'Rahul', phone: '98765' });
+  const c3 = a.saveCustomer({ name: 'Fatima', phone: '' });
+  const o = a.saveOffer({ title: 'Festival 10% off', pct: 10, validTill: R.addDays(TODAY, 5) });
+  const r = a.bulkMessages({ kind: 'offer', offerId: o.id, customerIds: [c1.id, c2.id, c3.id] });
+  assert.equal(r.messages.length, 1); assert.equal(r.skipped.length, 2);
+  assert.match(r.messages[0].text, /valid till 11 Nov 2026/);
+  assert.match(r.messages[0].text, /Dear Asha, a special offer for you from Sai Ram Hotel: Festival 10% off \(10% off\)/);
+  assert.match(r.messages[0].text, /regular discount: 5%/);
+  const v = a.bulkMessages({ kind: 'video', video: 'https://youtu.be/abcdefghijk', customerIds: [c1.id] });
+  assert.match(v.messages[0].text, /please watch this short video .* https:\/\/youtu\.be\/abcdefghijk/);
+  assert.throws(() => a.bulkMessages({ kind: 'video', video: 'not a link', customerIds: [c1.id] }), /YouTube/);
+  assert.throws(() => a.bulkMessages({ kind: 'offer', customerIds: [] }), /at least one/);
+  const n = a.bulkMessages({ kind: 'note', text: 'Hi {name}, open Sunday at {shop}', customerIds: [c1.id] });
+  assert.equal(n.messages[0].text, 'Hi Asha, open Sunday at Sai Ram Hotel');
+});
+
+test('advances and attendance sync like other changes', () => {
+  const a = fresh(), b = fresh();
+  const st = a.saveStaff({ id: 'staff001', name: 'Ravi', salary: 1 });
+  b.saveStaff({ id: 'staff001', name: 'Ravi', salary: 1 });
+  const ops = [{ opId: 'op-adv-1', method: 'saveAdvance', args: [{ id: 'adv0001', staffId: st.id, amount: 500, date: TODAY }] },
+    { opId: 'op-att-1', method: 'markAttendance', args: [{ id: 'att0001', staffId: st.id, date: TODAY, status: 'present' }] }];
+  assert.ok(b.applyOps(ops).every((r) => r.ok));
+  assert.ok(b.applyOps(ops).every((r) => r.duplicate));
+  assert.equal(b.advanceBalances().outstanding, 500); assert.equal(b.attendanceDay(TODAY)[0].status, 'present');
+});

@@ -4,6 +4,7 @@
   'use strict';
   var Base = window.BizBase, Industries = window.BizIndustries, R = window.BizReview;
   var KEY = 'bizreview-v2', AIKEY = 'bizreview-gemini-key';
+  var APP_VERSION = '3.2.0';   // keep in step with android/app/build.gradle versionName
   var Cap = window.Capacitor;
   var native = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
   var embedded = (function () { try { return window.top !== window.self; } catch (e) { return true; } })();
@@ -23,14 +24,14 @@
   var SKEY = 'bizreview-server', PKEY = 'bizreview-pin', OKEY = 'bizreview-outbox', XKEY = 'bizreview-sync-problems';
   var WRITES = ['setup', 'saveSettings', 'saveCustomer', 'removeCustomer', 'saveDepartment', 'removeDepartment', 'saveEntry', 'removeEntry', 'saveDailySheet',
     'saveReceipt', 'loadReviewSamples', 'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries',
-    'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer'];
+    'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer', 'saveAdvance', 'removeAdvance', 'markAttendance'];
   function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
   var sync = { url: lsGet(SKEY) || '', outbox: (function () { try { return JSON.parse(lsGet(OKEY) || '[]'); } catch (e) { return []; } })(), status: 'idle', last: '', running: false, timer: null };
   function base() { var u = sync.url.trim(); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'http://' + u; return u.replace(/\/+$/, '') + '/'; }
   function prepare(method, args) {
     args = JSON.parse(JSON.stringify(args));
     var a0 = args[0];
-    if (['saveEntry', 'saveDepartment', 'saveVaultRecord', 'logMessage', 'saveCustomer', 'saveStaff', 'saveOffer'].indexOf(method) >= 0 && a0 && !a0.id) a0.id = rid();
+    if (['saveEntry', 'saveDepartment', 'saveVaultRecord', 'logMessage', 'saveCustomer', 'saveStaff', 'saveOffer', 'saveAdvance', 'markAttendance'].indexOf(method) >= 0 && a0 && !a0.id) a0.id = rid();
     if (method === 'saveSalaries' && a0) (a0.rows || []).forEach(function (r) { if (!r.id) r.id = rid(); });
     if (method === 'saveReceipt' && a0) { if (!a0.id) a0.id = rid(); a0.entry = a0.entry || {}; if (!a0.entry.id) a0.entry.id = rid(); }
     if (method === 'saveDailySheet' && a0) (a0.rows || []).forEach(function (r) { r.ids = r.ids || {}; ['walkin', 'cashInHand', 'deposit', 'sale', 'cash', 'upi', 'card', 'otherCollection', 'expense', 'purchase', 'received', 'wastage', 'misc'].forEach(function (f) { if (!r.ids[f]) r.ids[f] = rid(); }); });
@@ -294,7 +295,7 @@
     S: S, P: P, info: info, $: $, $$: $$, esc: esc, money: money, pct: pct, today: today, addDays: addDays, niceDate: niceDate,
     opt: opt, seg: seg, onSeg: onSeg, field: field, input: input, val: val, empty: empty, waLink: waLink, sevPill: sevPill, flagItems: flagItems,
     toast: toast, act: act, confirmSheet: confirmSheet, readFile: readFile, saveFile: saveFile, openLink: openLink, barChart: barChart,
-    screen: screen, go: go, render: render, start: start, native: native, embedded: embedded, lsGet: lsGet, lsSet: lsSet, AIKEY: AIKEY,
+    VERSION: APP_VERSION, screen: screen, go: go, render: render, start: start, native: native, embedded: embedded, lsGet: lsGet, lsSet: lsSet, AIKEY: AIKEY,
     clearCache: function () { cache = {}; },
     sync: sync, runSync: runSync, connectCheck: connect, useServer: useServer, disconnect: disconnect, serverBase: base, local: local,
     syncProblems: function () { try { return JSON.parse(lsGet(XKEY) || '[]'); } catch (e) { return []; } }

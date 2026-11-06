@@ -50,12 +50,22 @@
   };
   var FIXED_DEFAULTS = [{ name: 'Rent', amount: 0 }, { name: 'Electricity', amount: 0 }, { name: 'Internet & phone', amount: 0 }];
   var KINDS = { fixed: 'Fixed', variable: 'Variable', maintenance: 'Maintenance', sudden: 'Sudden / miscellaneous' };
+  // Kept short on purpose: two examples per kind, shown as "e.g." quick picks. Anything else is typed.
   var KIND_EXAMPLES = {
-    fixed: ['Rent', 'Electricity', 'Internet & phone', 'Loan / EMI', 'Insurance', 'Licences'],
-    variable: ['Packing', 'Fuel & transport', 'Commission', 'Daily wages', 'Gas'],
-    maintenance: ['Repairs', 'AMC', 'Equipment service', 'Painting', 'Plumbing / electrical'],
-    sudden: ['Emergency repair', 'Breakage', 'Fine / penalty', 'Cash given', 'Other']
+    fixed: ['Rent', 'Electricity'],
+    variable: ['Packing', 'Transport'],
+    maintenance: ['Repairs', 'Servicing'],
+    sudden: ['Emergency repair', 'Breakage']
   };
+  // One short example line per Accounts feature (shown greyed as "e.g. …")
+  var FEATURE_EXAMPLES = {
+    sales: 'e.g. Counter sales for the day', purchases: 'e.g. Supplier bill no. 123', salaries: 'e.g. Staff salary for the month',
+    advances: 'e.g. ₹2,000 advance to a staff member', fixed: 'e.g. Shop rent', maintenance: 'e.g. Fridge repair',
+    variable: 'e.g. Electricity, transport', sudden: 'e.g. Emergency purchase'
+  };
+  var ATT_STATUS = { present: 'Present', half: 'Half day', absent: 'Absent', leave: 'Leave' };
+  // Entries written by a staff member (manual bills) that count as that person being at work
+  var BILL_TYPES = ['sale', 'purchase', 'collection', 'expense', 'walkin', 'cash'];
   // Sales departments replace the earlier mixed department list
   Object.keys(Industries.PRESETS).forEach(function (k) { Industries.PRESETS[k].review.departments = (SALES_DEPTS[k] || SALES_DEPTS.generic).slice(); });
 
@@ -63,6 +73,8 @@
   function num(v) { if (typeof v === 'string') v = v.replace(/,/g, ''); var n = parseFloat(v); return isFinite(n) ? n : 0; }
   function str(v) { return v === undefined || v === null ? '' : String(v).trim(); }
   function isDate(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s || ''); }
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function niceDay(d) { return isDate(d) ? (+d.slice(8)) + ' ' + MON[+d.slice(5, 7) - 1] + ' ' + d.slice(0, 4) : d; }
   function daysInMonth(ym) { var p = ym.split('-'); return new Date(+p[0], +p[1], 0).getDate(); }
 
   function install(ctx) {
@@ -76,7 +88,7 @@
       if (!Array.isArray(set.fixedCosts) || !set.fixedCosts.length) set.fixedCosts = FIXED_DEFAULTS.map(function (f) { return { name: f.name, amount: f.amount }; });
     });
     api.storeCategories = function () { var c = s().storeCategories; return Array.isArray(c) && c.length ? c.slice() : (STORE_CATS[s().industry] || STORE_CATS.generic).slice(); };
-    api.kinds = function () { return { labels: KINDS, examples: KIND_EXAMPLES }; };
+    api.kinds = function () { return { labels: KINDS, examples: KIND_EXAMPLES, featureExamples: FEATURE_EXAMPLES }; };
 
     // ---------------- staff & salaries ----------------
     api.saveStaff = function (input) {
@@ -96,7 +108,7 @@
     api.removeStaff = function (id) {
       return ctx.tx(function () {
         var st = ctx.mustFind('staff', id, 'Staff member');
-        if (db().entries.some(function (e) { return e.staffId === id; })) { st.active = false; ctx.touch('staff', st); return { deactivated: true }; }
+        if (db().entries.some(function (e) { return e.staffId === id; }) || db().advances.some(function (a) { return a.staffId === id; }) || db().attendance.some(function (a) { return a.staffId === id; })) { st.active = false; ctx.touch('staff', st); return { deactivated: true }; }
         db().staff = db().staff.filter(function (x) { return x.id !== id; }); ctx.drop('staff', id);
         return { deleted: true };
       });
@@ -127,6 +139,156 @@
         var e = paid[st.id];
         return { staffId: st.id, name: st.name, role: st.role, salary: st.salary || 0, paid: e ? e.amount : 0, paidOn: e ? e.date : '', entryId: e ? e.id : '', files: e ? e.files : [] };
       });
+    };
+
+    // ---------------- staff advances (money given ahead; recovered from salary or returned in cash) ----------------
+    // Advances are not an expense: they are money the staff member owes. They do not change profit.
+    api.saveAdvance = function (input) {
+      input = input || {};
+      return ctx.tx(function () {
+        var st = ctx.mustFind('staff', input.staffId, 'Staff member');
+        var kind = input.kind === 'recovered' ? 'recovered' : 'given';
+        var amt = r2(num(input.amount));
+        if (!(amt > 0)) fail('Enter an amount more than zero');
+        if (!isDate(input.date)) fail('Choose the date');
+        var a = input.id ? ctx.find('advances', input.id) : null;
+        if (!a) { a = { id: ctx.newId(input.id), createdAt: ctx.stamp() }; db().advances.push(a); }
+        a.staffId = st.id; a.staffName = st.name; a.kind = kind; a.amount = amt; a.date = input.date;
+        a.how = kind === 'recovered' ? (input.how === 'salary' ? 'salary' : 'cash') : (str(input.how) || 'Cash');
+        a.note = str(input.note); a.givenBy = str(input.givenBy); a.files = ctx.normFiles(input.files || a.files);
+        a.updatedAt = ctx.stamp();
+        ctx.touch('advances', a);
+        return ctx.clone(a);
+      });
+    };
+    api.removeAdvance = function (id) {
+      return ctx.tx(function () { ctx.mustFind('advances', id, 'Advance'); db().advances = db().advances.filter(function (x) { return x.id !== id; }); ctx.drop('advances', id); return { deleted: true }; });
+    };
+    api.advanceBalances = function () {
+      var by = {};
+      db().staff.forEach(function (st) { by[st.id] = { staffId: st.id, name: st.name, role: st.role, active: st.active !== false, given: 0, recovered: 0, balance: 0, last: '' }; });
+      db().advances.forEach(function (a) {
+        var b = by[a.staffId] || (by[a.staffId] = { staffId: a.staffId, name: a.staffName, role: '', active: false, given: 0, recovered: 0, balance: 0, last: '' });
+        b[a.kind === 'recovered' ? 'recovered' : 'given'] += a.amount;
+        if (a.date > b.last) b.last = a.date;
+      });
+      var rows = Object.keys(by).map(function (k) { var b = by[k]; b.given = r2(b.given); b.recovered = r2(b.recovered); b.balance = r2(b.given - b.recovered); return b; })
+        .filter(function (b) { return b.active || b.given || b.recovered; })
+        .sort(function (x, y) { return y.balance - x.balance || x.name.localeCompare(y.name); });
+      return { rows: rows, outstanding: r2(rows.reduce(function (a, b) { return a + Math.max(0, b.balance); }, 0)) };
+    };
+
+    // ---------------- attendance (from bills each person wrote, plus the owner's own marks) ----------------
+    api.markAttendance = function (input) {
+      input = input || {};
+      return ctx.tx(function () {
+        var st = ctx.mustFind('staff', input.staffId, 'Staff member');
+        if (!isDate(input.date)) fail('Choose the date');
+        var old = db().attendance.filter(function (x) { return x.staffId === st.id && x.date === input.date; });
+        old.forEach(function (x) { db().attendance = db().attendance.filter(function (y) { return y.id !== x.id; }); ctx.drop('attendance', x.id); });
+        if (!input.status) return { cleared: true };           // back to "from bills"
+        if (!ATT_STATUS[input.status]) fail('Choose present, half day, absent or leave');
+        var m = { id: ctx.newId(input.id), staffId: st.id, staffName: st.name, date: input.date, status: input.status, note: str(input.note), markedAt: ctx.stamp() };
+        db().attendance.push(m); ctx.touch('attendance', m);
+        return ctx.clone(m);
+      });
+    };
+    // One staff member, one day: the owner's mark wins; otherwise present if they wrote at least one bill.
+    function dayAttendance(st, d, entries) {
+      var mark = db().attendance.filter(function (x) { return x.staffId === st.id && x.date === d; })[0];
+      var bills = entries.filter(function (e) { return e.staffId === st.id && e.date === d && BILL_TYPES.indexOf(e.type) >= 0 && e.source !== 'salary'; });
+      var times = bills.map(function (e) { return e.time; }).filter(Boolean).sort();
+      var info = { date: d, bills: bills.length, first: times[0] || '', last: times[times.length - 1] || '' };
+      if (mark) return Object.assign(info, { status: mark.status, source: 'marked', note: mark.note });
+      if (bills.length) return Object.assign(info, { status: 'present', source: 'bills', note: '' });
+      return Object.assign(info, { status: '', source: '', note: '' });
+    }
+    api.attendanceDay = function (date) {
+      var d = isDate(date) ? date : ctx.today();
+      var es = db().entries.filter(function (e) { return e.date === d && e.staffId; });
+      return db().staff.filter(function (st) { return st.active !== false; }).map(function (st) { return Object.assign({ staffId: st.id, name: st.name, role: st.role }, dayAttendance(st, d, es)); });
+    };
+    api.attendanceMonth = function (ym) {
+      if (!/^\d{4}-\d{2}$/.test(ym || '')) ym = ctx.today().slice(0, 7);
+      var n = daysInMonth(ym), t = ctx.today(), days = [];
+      for (var i = 1; i <= n; i++) { var d = ym + '-' + (i < 10 ? '0' : '') + i; if (d <= t) days.push(d); }
+      var es = db().entries.filter(function (e) { return e.staffId && e.date.slice(0, 7) === ym; });
+      var rows = db().staff.filter(function (st) { return st.active !== false || db().attendance.some(function (x) { return x.staffId === st.id && x.date.slice(0, 7) === ym; }); }).map(function (st) {
+        var list = days.map(function (d) { return dayAttendance(st, d, es); });
+        var count = function (k) { return list.filter(function (x) { return x.status === k; }).length; };
+        return { staffId: st.id, name: st.name, role: st.role, days: list, present: count('present'), half: count('half'), absent: count('absent'), leave: count('leave'),
+          unmarked: list.filter(function (x) { return !x.status; }).length, fromBills: list.filter(function (x) { return x.source === 'bills'; }).length };
+      });
+      return { month: ym, days: days, rows: rows };
+    };
+
+    // ---------------- daily summary (one day, ready to share on WhatsApp) ----------------
+    api.dailySummary = function (date) {
+      var d = isDate(date) ? date : ctx.today();
+      var es = db().entries.filter(function (e) { return e.date === d; });
+      var sum = function (f) { return r2(es.filter(f).reduce(function (a, e) { return a + e.amount; }, 0)); };
+      var pl = api.profitLoss({ from: d, to: d });
+      var byMethod = {};
+      es.filter(function (e) { return e.type === 'collection'; }).forEach(function (e) { byMethod[e.method || 'Other'] = r2((byMethod[e.method || 'Other'] || 0) + e.amount); });
+      var purchases = es.filter(function (e) { return e.type === 'purchase'; });
+      var cashCount = es.filter(function (e) { return e.type === 'cash'; }).sort(function (a, b) { return (b.time || '').localeCompare(a.time || ''); })[0];
+      var att = api.attendanceDay(d);
+      var adv = db().advances.filter(function (a) { return a.date === d; });
+      var due = api.vaultDue ? api.vaultDue({ days: 0 }).filter(function (x) { return x.record.dueDate === d; }).length : 0;
+      var out = {
+        date: d, sales: pl.sales, walkins: Math.round(sum(function (e) { return e.type === 'walkin'; })),
+        salesByDept: pl.salesByDept, collections: byMethod, collected: r2(Object.keys(byMethod).reduce(function (a, k) { return a + byMethod[k]; }, 0)),
+        purchases: pl.purchases, purchaseBills: purchases.length, billsWithPhoto: purchases.filter(function (e) { return e.files && e.files.length; }).length,
+        variable: pl.variable, maintenance: pl.maintenance, sudden: pl.sudden, fixedShare: pl.fixed, gross: pl.gross, net: pl.net,
+        salaries: sum(function (e) { return e.type === 'expense' && e.category === 'Salaries' && e.date === d; }),
+        advancesGiven: r2(adv.filter(function (a) { return a.kind === 'given'; }).reduce(function (a, x) { return a + x.amount; }, 0)),
+        advancesRecovered: r2(adv.filter(function (a) { return a.kind === 'recovered'; }).reduce(function (a, x) { return a + x.amount; }, 0)),
+        cashCounted: cashCount ? cashCount.amount : null, deposited: sum(function (e) { return e.type === 'deposit'; }),
+        present: att.filter(function (x) { return x.status === 'present' || x.status === 'half'; }).map(function (x) { return x.name; }),
+        absent: att.filter(function (x) { return x.status === 'absent' || x.status === 'leave'; }).map(function (x) { return x.name; }),
+        notMarked: att.filter(function (x) { return !x.status; }).map(function (x) { return x.name; }),
+        remindersDue: due
+      };
+      var cur = s().currency || '', m = function (n) { return cur + Math.round(n).toLocaleString('en-IN'); };
+      var L = [s().businessName + ' · daily summary · ' + niceDay(d), '', 'Sales: ' + m(out.sales) + (out.walkins ? ' (' + out.walkins + ' customers)' : '')];
+      out.salesByDept.forEach(function (x) { L.push('  ' + x.name + ': ' + m(x.amount)); });
+      if (out.collected) L.push('Collected: ' + m(out.collected) + ' (' + Object.keys(byMethod).map(function (k) { return k + ' ' + m(byMethod[k]); }).join(', ') + ')');
+      L.push('Purchases: ' + m(out.purchases) + ' · ' + out.purchaseBills + ' bill(s)' + (out.purchaseBills ? ', ' + out.billsWithPhoto + ' with photo' : ''));
+      L.push('Expenses: variable ' + m(out.variable) + ', maintenance ' + m(out.maintenance) + ', sudden ' + m(out.sudden));
+      L.push('Fixed costs (day\'s share): ' + m(out.fixedShare));
+      L.push('Net profit: ' + m(out.net));
+      if (out.advancesGiven || out.advancesRecovered) L.push('Staff advances: given ' + m(out.advancesGiven) + ', recovered ' + m(out.advancesRecovered));
+      if (out.cashCounted !== null) L.push('Cash counted at close: ' + m(out.cashCounted) + (out.deposited ? ' · deposited ' + m(out.deposited) : ''));
+      if (att.length) L.push('Staff present: ' + (out.present.join(', ') || 'none') + (out.absent.length ? ' · absent/leave: ' + out.absent.join(', ') : '') + (out.notMarked.length ? ' · not marked: ' + out.notMarked.join(', ') : ''));
+      if (due) L.push('Customer reminders due today: ' + due);
+      out.text = L.join('\n');
+      return out;
+    };
+
+    // ---------------- bulk reminder (one message to many customers, sent one by one) ----------------
+    // kind: 'offer' (needs offerId), 'video' (needs a YouTube link) or 'note' (own text).
+    api.bulkMessages = function (input) {
+      input = input || {};
+      var ids = Array.isArray(input.customerIds) ? input.customerIds : [];
+      if (!ids.length) fail('Choose at least one customer');
+      var sset = s(), title = sset.vaultTitle || sset.businessName, cur = sset.currency || '';
+      var offer = input.kind === 'offer' ? ctx.find('offers', input.offerId) : null;
+      if (input.kind === 'offer' && !offer) fail('Choose the discount offer to send');
+      var vid = str(input.video);
+      if (input.kind === 'video' && !/(youtu\.be\/|youtube\.com\/)/i.test(vid)) fail('Add a YouTube link for the video');
+      if (input.kind === 'note' && !str(input.text)) fail('Write the message');
+      var out = [], skipped = [];
+      ids.forEach(function (id) {
+        var c = ctx.find('customers', id); if (!c) return;
+        var digits = String(c.phone || '').replace(/\D/g, '');
+        if (digits.length < 10) { skipped.push({ id: c.id, name: c.name, reason: c.phone ? 'Phone number looks wrong' : 'No phone number' }); return; }
+        var text;
+        if (offer) text = 'Dear ' + c.name + ', a special offer for you from ' + title + ': ' + offer.title + ' (' + (offer.pct ? offer.pct + '% off' : cur + offer.amount + ' off') + ')' + (offer.validTill ? ', valid till ' + niceDay(offer.validTill) : '') + '.' + (c.discountPct ? ' Your regular discount: ' + c.discountPct + '%.' : '') + ' See you soon!';
+        else if (input.kind === 'video') text = 'Dear ' + c.name + ', please watch this short video from ' + title + ': ' + vid;
+        else text = str(input.text).replace(/\{name\}/g, c.name).replace(/\{shop\}/g, title);
+        out.push({ customerId: c.id, name: c.name, phone: c.phone, text: text });
+      });
+      return { messages: out, skipped: skipped, template: offer ? 'bulk-offer' : input.kind === 'video' ? 'bulk-video' : 'bulk-note' };
     };
 
     // ---------------- Profit & Loss ----------------
@@ -318,8 +480,8 @@
           add({ type: 'purchase', date: d, time: '09:30', storeCategory: cats[Math.floor(rnd() * cats.length)], vendor: vendors[(di + b) % 3], billNo: 'B' + (1000 + di * 3 + b), amount: amt, method: paid });
         }
         var v = Math.round(400 + rnd() * 700); cashOut += v;
-        add({ type: 'expense', kind: 'variable', category: KIND_EXAMPLES.variable[di % 5], date: d, time: '12:00', amount: v, method: 'Cash' });
-        if (di % 8 === 3) { var m = Math.round(1500 + rnd() * 2500); cashOut += m; add({ type: 'expense', kind: 'maintenance', category: KIND_EXAMPLES.maintenance[di % 5], date: d, time: '15:00', amount: m, method: 'Cash', vendor: 'Service vendor' }); }
+        add({ type: 'expense', kind: 'variable', category: ['Packing', 'Transport', 'Commission', 'Daily wages', 'Gas'][di % 5], date: d, time: '12:00', amount: v, method: 'Cash' });
+        if (di % 8 === 3) { var m = Math.round(1500 + rnd() * 2500); cashOut += m; add({ type: 'expense', kind: 'maintenance', category: ['Repairs', 'AMC', 'Servicing', 'Painting', 'Plumbing'][di % 5], date: d, time: '15:00', amount: m, method: 'Cash', vendor: 'Service vendor' }); }
         if (di === 12 || di === 26) { var x = di === 12 ? 6500 : 1800; cashOut += x; add({ type: 'expense', kind: 'sudden', category: di === 12 ? 'Emergency repair' : 'Breakage', note: di === 12 ? 'Fridge compressor failed' : 'Glasses broken', date: d, time: '17:00', amount: x, method: 'Cash' }); }
         var dep0 = deps[0];
         if (dep0) {
@@ -346,5 +508,5 @@
     };
   }
 
-  return { install: install, SALES_DEPTS: SALES_DEPTS, STORE_CATS: STORE_CATS, KINDS: KINDS, KIND_EXAMPLES: KIND_EXAMPLES, daysInMonth: daysInMonth };
+  return { install: install, SALES_DEPTS: SALES_DEPTS, STORE_CATS: STORE_CATS, KINDS: KINDS, KIND_EXAMPLES: KIND_EXAMPLES, FEATURE_EXAMPLES: FEATURE_EXAMPLES, ATT_STATUS: ATT_STATUS, daysInMonth: daysInMonth };
 });

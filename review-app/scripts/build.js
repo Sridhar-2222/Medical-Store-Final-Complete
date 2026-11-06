@@ -9,7 +9,7 @@ const root = path.join(__dirname, '..');
 const out = path.join(root, 'build');
 const www = path.join(out, 'www');
 const CORE = ['industries.js', 'review.js', 'accounts.js', 'base.js', 'ocr-parse.js', 'ai.js'];
-const UI = ['ui.js', 'files.js', 'screens-accounts.js', 'screens-people.js'];
+const UI = ['ui.js', 'files.js', 'screens-accounts.js', 'screens-people.js', 'screens-staff.js'];
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(path.join(www, 'core'), { recursive: true });
 fs.cpSync(path.join(root, 'web'), www, { recursive: true });

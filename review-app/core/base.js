@@ -12,7 +12,7 @@
   'use strict';
 
   var VERSION = 3;
-  var COLLECTIONS = ['departments', 'entries', 'receipts', 'customers', 'vaultRecords', 'messages', 'staff', 'offers'];
+  var COLLECTIONS = ['departments', 'entries', 'receipts', 'customers', 'vaultRecords', 'messages', 'staff', 'offers', 'advances', 'attendance'];
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function newId(v) { return typeof v === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(v) ? v : uid(); }
@@ -67,7 +67,9 @@
     departments: ['name', 'kind', 'active'],
     receipts: ['date', 'vendor', 'billNo', 'type', 'total', 'engine'],
     staff: ['name', 'role', 'phone', 'salary', 'active'],
-    offers: ['title', 'pct', 'amount', 'validTill', 'reason', 'createdAt']
+    offers: ['title', 'pct', 'amount', 'validTill', 'reason', 'createdAt'],
+    advances: ['date', 'staffName', 'kind', 'amount', 'how', 'givenBy', 'note'],
+    attendance: ['date', 'staffName', 'status', 'note', 'markedAt']
   };
 
   function createApp(store, opts) {
@@ -211,7 +213,7 @@
     // Changes recorded while offline, applied once each.
     var SYNCABLE = ['setup', 'saveSettings', 'saveCustomer', 'removeCustomer', 'saveDepartment', 'removeDepartment', 'saveEntry', 'removeEntry',
       'saveDailySheet', 'saveReceipt', 'loadReviewSamples', 'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries',
-      'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer'];
+      'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer', 'saveAdvance', 'removeAdvance', 'markAttendance'];
     api.applyOps = function (ops) {
       var out = [];
       (ops || []).forEach(function (op) {

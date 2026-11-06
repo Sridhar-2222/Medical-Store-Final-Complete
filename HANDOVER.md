@@ -37,7 +37,13 @@ Working modes: **phone only** (default, fully offline) or **connected to an offi
 
 ## 2. Current state (all done, tested, pushed)
 
-**Latest: Fingertrip.biz AI 3.1.0** (Android app id `biz.fingertrip.ai`; earlier builds were `com.bizcore.app`). Play Store kit in `play-store/`.
+**Latest code: Fingertrip.biz AI 3.2.0** (in `review-app/`; the APK in `release/` is still 3.1.1 and must be rebuilt with the signing key to bring 3.2.0 to phones).
+3.2.0 adds: Upload-bill button at the top of every Accounts / Store feature, one "e.g." example line per feature (two quick picks per expense kind),
+Staff advances (not an expense; balance per person), Attendance (present from bills marked "Bill written by", owner's P/½/A/L mark wins),
+Daily summary (Reports and Accounts; share on WhatsApp), Bulk reminder (discount offer / video / own message to many customers),
+no red marks on customer reminders, header names that never split mid-word with large phone text, app version shown in Business setup.
+
+**Previous: Fingertrip.biz AI 3.1.0** (Android app id `biz.fingertrip.ai`; earlier builds were `com.bizcore.app`). Play Store kit in `play-store/`.
 App = BizCore 3.0 rebranded: Main page with 6 headers (Accounts, Customers, Store,
 Reports, Staff, Business setup) joined by the fingertip line; header → feature → entry pages;
 photo + file on every entry page; four expense kinds; P&L with fixed costs spread per day;
