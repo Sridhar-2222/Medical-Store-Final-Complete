@@ -13,14 +13,14 @@
  *   changes = { upserts: [{col, doc}], deletes: [{col, id}], full: bool }
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./industries'));
-  else root.BizEngine = factory(root.BizIndustries);
-})(typeof self !== 'undefined' ? self : this, function (Industries) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./industries'), require('./review'));
+  else root.BizEngine = factory(root.BizIndustries, root.BizReview);
+})(typeof self !== 'undefined' ? self : this, function (Industries, Review) {
   'use strict';
 
   var VERSION = 1;
   var COLLECTIONS = ['items', 'customers', 'suppliers', 'sales', 'purchases', 'payments',
-    'expenses', 'appointments', 'staff', 'stockMoves'];
+    'expenses', 'appointments', 'staff', 'stockMoves', 'departments', 'entries', 'receipts', 'vaultRecords', 'messages'];
   var EDITABLE = ['items', 'customers', 'suppliers', 'expenses', 'appointments', 'staff'];
   var PAYMENT_METHODS = ['Cash', 'UPI', 'Card', 'Bank transfer', 'Cheque', 'Credit', 'Other'];
 
@@ -74,7 +74,9 @@
       loyaltyPercent: 0,
       receiptFooter: 'Thank you! Visit again.',
       modules: p.modules.slice(),
-      geminiModel: 'gemini-2.5-flash'
+      geminiModel: 'gemini-2.5-flash',
+      appMode: 'review',
+      halfDaySplit: '15:00', priceAlertPct: 10, wastageAlertPct: 5, collectionGapPct: 3
     };
   }
 
@@ -122,6 +124,7 @@
     opts = opts || {};
     var now = opts.now || function () { return new Date(); };
     var changes = null;
+    var setupHooks = [];
 
     if (!store.data || typeof store.data !== 'object') store.data = emptyDb();
     var db = store.data;
@@ -287,13 +290,20 @@
         var p = Industries.get(key);
         var s = settings();
         var keep = s.setupDone ? s : defaultSettings(key);
+        var mode = ['review', 'pos', 'both'].indexOf(input.mode) >= 0 ? input.mode : 'pos';
+        var mods = mode === 'review' ? Industries.REVIEW_DEFAULT_MODULES.slice()
+          : mode === 'both' ? Industries.REVIEW_MODULES.concat(p.modules) : p.modules.slice();
         db.settings = Object.assign(keep, {
-          industry: key, setupDone: true, modules: p.modules.slice(), taxRate: p.taxRate,
+          industry: key, setupDone: true, modules: mods, taxRate: p.taxRate, appMode: mode,
           businessName: str(input.businessName) || s.businessName || p.name
         });
         ['currency', 'phone', 'address', 'locale'].forEach(function (k) { if (str(input[k])) db.settings[k] = str(input[k]); });
         changes.settings = true;
-        if (input.loadSamples) loadSamplesInner();
+        setupHooks.forEach(function (fn) { fn(); });
+        if (input.loadSamples) {
+          if (mode !== 'review') loadSamplesInner();
+          if (mode !== 'pos' && api.loadReviewSamplesInner) api.loadReviewSamplesInner();
+        }
         return clone(db.settings);
       });
     };
@@ -305,7 +315,7 @@
         Object.keys(patch).forEach(function (k) {
           if (k === 'setupDone') return;
           var v = patch[k];
-          if (['taxRate', 'lowStockDefault', 'expiryWarnDays', 'loyaltyPercent'].indexOf(k) >= 0) v = num(v);
+          if (['taxRate', 'lowStockDefault', 'expiryWarnDays', 'loyaltyPercent', 'priceAlertPct', 'wastageAlertPct', 'collectionGapPct'].indexOf(k) >= 0) v = num(v);
           if (['taxInclusive', 'allowNegativeStock'].indexOf(k) >= 0) v = !!v;
           if (k === 'modules') v = (v || []).filter(function (m) { return Industries.ALL_MODULES.indexOf(m) >= 0; });
           if (k === 'industry' && !Industries.PRESETS[v]) return;
@@ -345,7 +355,7 @@
       if (q.search) {
         var needle = String(q.search).toLowerCase();
         rows = rows.filter(function (r) {
-          return [r.name, r.sku, r.barcode, r.phone, r.email, r.number, r.customerName, r.supplierName, r.category, r.batch, r.note, r.notes, r.itemName]
+          return [r.name, r.sku, r.barcode, r.phone, r.email, r.number, r.customerName, r.supplierName, r.category, r.batch, r.note, r.notes, r.itemName, r.vendor, r.billNo, r.departmentName]
             .concat(r.custom ? Object.keys(r.custom).map(function (k) { return r.custom[k]; }) : [])
             .some(function (v) { return v !== undefined && v !== null && String(v).toLowerCase().indexOf(needle) >= 0; });
         });
@@ -355,6 +365,9 @@
       if (q.partyId) rows = rows.filter(function (r) { return r.customerId === q.partyId || r.supplierId === q.partyId || r.partyId === q.partyId; });
       if (q.itemId) rows = rows.filter(function (r) { return r.itemId === q.itemId; });
       if (q.status) rows = rows.filter(function (r) { return r.status === q.status; });
+      if (q.type) rows = rows.filter(function (r) { return r.type === q.type; });
+      if (q.departmentId) rows = rows.filter(function (r) { return r.departmentId === q.departmentId; });
+      if (q.half) rows = rows.filter(function (r) { return r.half === q.half; });
       if (q.category) rows = rows.filter(function (r) { return r.category === q.category; });
       if (col === 'items' && q.filter) {
         var warn = addDays(t, s.expiryWarnDays);
@@ -789,7 +802,12 @@
       payments: ['date', 'direction', 'partyType', 'partyName', 'amount', 'method', 'note'],
       appointments: ['date', 'time', 'customerName', 'phone', 'itemName', 'durationMin', 'status', 'notes'],
       staff: ['name', 'role', 'phone', 'commissionRate', 'salary', 'active'],
-      stockMoves: ['date', 'itemName', 'qty', 'reason', 'note', 'balance']
+      stockMoves: ['date', 'itemName', 'qty', 'reason', 'note', 'balance'],
+      entries: ['date', 'time', 'half', 'departmentName', 'type', 'amount', 'method', 'category', 'costType', 'vendor', 'billNo', 'note', 'source'],
+      departments: ['name', 'kind', 'active'],
+      receipts: ['date', 'vendor', 'billNo', 'type', 'total', 'engine'],
+      vaultRecords: ['date', 'customerName', 'kind', 'title', 'dueDate', 'amount', 'details'],
+      messages: ['date', 'customerName', 'template', 'text']
     };
 
     api.exportCSV = function (col) {
@@ -853,7 +871,9 @@
     // error (e.g. bill already cancelled on another phone) is reported back and
     // not retried; anything else stops the batch so it can be retried later.
     var SYNCABLE = ['setup', 'saveSettings', 'save', 'remove', 'createSale', 'voidSale', 'createPurchase', 'voidPurchase',
-      'adjustStock', 'recordPayment', 'setAppointmentStatus', 'billAppointment', 'importCSV', 'loadSamples'];
+      'adjustStock', 'recordPayment', 'setAppointmentStatus', 'billAppointment', 'importCSV', 'loadSamples',
+      'saveDepartment', 'removeDepartment', 'saveEntry', 'removeEntry', 'saveDailySheet', 'saveReceipt', 'loadReviewSamples',
+      'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries'];
     api.applyOps = function (ops) {
       if (!Array.isArray(ops)) fail('ops must be a list');
       if (!Array.isArray(db.meta.appliedOps)) db.meta.appliedOps = [];
@@ -878,7 +898,13 @@
       return results;
     };
 
-    api.methods = function () { return Object.keys(api); };
+    if (Review) {
+      Review.install({ api: api, db: function () { return db; }, tx: tx, touch: touch, drop: drop, find: find, mustFind: mustFind,
+        fail: fail, uid: uid, newId: newId, today: today, stamp: stamp, settings: settings, preset: preset, clone: clone,
+        onSetup: function (fn) { setupHooks.push(fn); } });
+    }
+
+    api.methods = function () { return Object.keys(api).filter(function (k) { return !/Inner$/.test(k); }); };
 
     return api;
   }

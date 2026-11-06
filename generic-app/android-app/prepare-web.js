@@ -8,7 +8,7 @@ fs.rmSync(www, { recursive: true, force: true });
 fs.mkdirSync(path.join(www, 'core'), { recursive: true });
 for (const f of fs.readdirSync(path.join(root, 'public'))) {
   if (f === 'head.html') continue;
-  fs.copyFileSync(path.join(root, 'public', f), path.join(www, f));
+  fs.cpSync(path.join(root, 'public', f), path.join(www, f), { recursive: true });
 }
 for (const f of fs.readdirSync(path.join(root, 'core'))) fs.copyFileSync(path.join(root, 'core', f), path.join(www, 'core', f));
 console.log('www/ ready');

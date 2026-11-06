@@ -30,9 +30,12 @@
    *                  exactly once when the connection is back.
    */
   var api = { mode: 'local', online: true, health: null, engine: null, cache: null, storageOk: true, outbox: lsJSON(LS_OUTBOX, []), syncing: false };
-  var READS = ['info', 'list', 'get', 'findItemByCode', 'quote', 'ledger', 'dashboard', 'report', 'exportAll', 'exportCSV', 'methods'];
+  var READS = ['info', 'list', 'get', 'findItemByCode', 'quote', 'ledger', 'dashboard', 'report', 'exportAll', 'exportCSV', 'methods',
+    'reviewInsights', 'getDailySheet', 'checkReceipt', 'sampleDays', 'inventory', 'knownItems', 'vault', 'vaultDue', 'vaultSummary'];
   var SYNC_OPS = ['setup', 'saveSettings', 'save', 'remove', 'createSale', 'voidSale', 'createPurchase', 'voidPurchase',
-    'adjustStock', 'recordPayment', 'setAppointmentStatus', 'billAppointment', 'importCSV', 'loadSamples'];
+    'adjustStock', 'recordPayment', 'setAppointmentStatus', 'billAppointment', 'importCSV', 'loadSamples',
+    'saveDepartment', 'removeDepartment', 'saveEntry', 'removeEntry', 'saveDailySheet', 'saveReceipt', 'loadReviewSamples',
+    'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries'];
 
   function serverBase() {
     var b = (lsGet(LS_SERVER) || '').trim();
@@ -97,6 +100,10 @@
   function prepareArgs(method, args, replay) {
     args = JSON.parse(JSON.stringify(args));
     if (method === 'save' && args[1] && !args[1].id) args[1].id = localId();
+    if ((method === 'saveEntry' || method === 'saveDepartment' || method === 'saveVaultRecord' || method === 'logMessage') && args[0] && !args[0].id) args[0].id = localId();
+    if (method === 'ensureVaultToken' && !args[1]) args[1] = (localId() + localId()).replace(/[^a-z0-9]/g, '').slice(0, 24);
+    if (method === 'saveReceipt' && args[0]) { if (!args[0].id) args[0].id = localId(); args[0].entry = args[0].entry || {}; if (!args[0].entry.id) args[0].entry.id = localId(); }
+    if (method === 'saveDailySheet' && args[0]) (args[0].rows || []).forEach(function (r) { r.ids = r.ids || {}; ['sale', 'cash', 'upi', 'card', 'otherCollection', 'expense', 'purchase', 'received', 'wastage', 'misc'].forEach(function (f) { if (!r.ids[f]) r.ids[f] = localId(); }); });
     if ((method === 'createSale' || method === 'createPurchase') && args[0]) { if (!args[0].id) args[0].id = localId(); if (replay) args[0].replay = true; }
     if (method === 'billAppointment') { args[1] = args[1] || {}; if (!args[1].id) args[1].id = localId(); if (replay) args[1].replay = true; }
     return args;
@@ -385,7 +392,8 @@
     { key: 'prefs', mod: 'settings', icon: '⚙', text: 'Settings' },
     { key: 'data', icon: '⇅', text: 'Backup & data' }
   ];
-  function route() { var h = (location.hash || '').replace(/^#/, ''); return h || 'dashboard'; }
+  function homePage() { return has('overview') ? 'overview' : 'dashboard'; }
+  function route() { var h = (location.hash || '').replace(/^#/, ''); return h || homePage(); }
   function go(name) { if (location.hash !== '#' + name) location.hash = name; else render(); }
 
   function refreshInfo() {
@@ -405,7 +413,7 @@
       '<div class="side-foot"><span><a href="#data" style="text-decoration:none"><span id="sync-pill" class="pill ' + st.cls + '">' + esc(st.text) + '</span></a></span><span>BizCore · ' + esc(today()) + '</span></div></aside>' +
       '<div class="scrim" id="scrim"></div>' +
       '<div class="main"><header class="topbar"><button class="btn ghost menu-btn" id="menu" aria-label="Menu">☰</button><h1 id="page-title"></h1>' +
-      '<div class="row" id="top-actions"></div>' + (has('pos') ? '<a class="btn primary" href="#pos">＋ ' + esc(label('sale')) + '</a>' : '') + '</header>' +
+      '<div class="row" id="top-actions"></div>' + (has('pos') ? '<a class="btn primary" href="#pos">＋ ' + esc(label('sale')) + '</a>' : has('daily') ? '<a class="btn primary" href="#daily">＋ Today</a>' : '') + '</header>' +
       '<main class="content" id="view"></main></div></div><div class="toasts" id="toasts"></div>';
     $('#menu').onclick = function () { document.body.classList.toggle('nav-open'); };
     $('#scrim').onclick = function () { document.body.classList.remove('nav-open'); };
@@ -420,7 +428,7 @@
     if (!$('#view')) shell();
     var r = route();
     var known = PAGES[r] && (has(r) || (r === 'prefs' && has('settings')));
-    if (!known) r = 'dashboard';
+    if (!known) r = homePage();
     $$('[data-nav]').forEach(function (a) { a.classList.toggle('active', a.getAttribute('data-nav') === r); });
     $('#top-actions').innerHTML = '';
     // A fresh container per page: a slow page that finishes loading after the user has
@@ -439,7 +447,7 @@
     var list = Industries.list();
     var app = document.getElementById('app');
     app.innerHTML = '<div class="setup"><div class="stack"><span class="pill ink" style="justify-self:start">Step 1 of 1 · takes a minute</span>' +
-      '<h1>Set up BizCore for your business</h1><p class="muted" style="max-width:62ch">Pick the type of business. It sets the words, fields, tax rate and screens you see. You can change everything later in Settings.</p></div>' +
+      '<h1>Set up BizCore for your business</h1><p class="muted" style="max-width:62ch">Pick the type of business. BizCore then reviews your numbers the way that business should be reviewed: its departments, its key ratios and what to photograph. You can change it later in Settings.</p></div>' +
       '<div class="ind-grid">' + list.map(function (i) {
         var p = Industries.get(i.key);
         return '<button type="button" class="ind' + (i.key === chosen ? ' on' : '') + '" data-ind="' + i.key + '"><span class="e" aria-hidden="true">' + i.icon + '</span><span class="t">' + esc(i.name) + '</span>' +
@@ -450,20 +458,26 @@
       '<label class="field">Phone<input name="phone" id="setup-phone" value="' + esc(S.phone) + '"></label>' +
       '<label class="field">Currency symbol<input name="currency" id="setup-cur" value="' + esc(S.currency) + '"></label>' +
       '<label class="field wide">Address<input name="address" id="setup-addr" value="' + esc(S.address) + '"></label></div>' +
-      '<label class="check"><input type="checkbox" name="loadSamples" id="setup-samples" checked> Add a few example items so I can try it out (delete them any time)</label>' +
+      '<label class="check"><input type="checkbox" name="loadSamples" id="setup-samples" checked> Fill in 30 days of example data so I can try it (delete any time)</label>' +
       '<div class="row"><button class="btn primary big" type="submit" style="width:auto">Start using BizCore</button>' +
       '<span class="muted">' + (api.mode === 'remote' ? 'Data is saved on your server and shared by all devices.' : (native ? 'Data is saved on this phone.' : 'Data is saved in this browser.') + ' Use Backup to move it.') + '</span></div></form>' +
       (api.mode === 'local' ? '<div class="panel row"><div style="flex:1;min-width:220px"><b>Already have a shop server?</b><div class="muted">Connect this ' + (native ? 'phone' : 'device') + ' to it to share bills and stock with your other devices.</div></div><button type="button" class="btn" id="setup-connect">Connect to shop server</button></div>' : '') +
       '</div><div class="toasts" id="toasts"></div>';
     var sc = $('#setup-connect'); if (sc) sc.onclick = connectDialog;
+    var chosenMode = 'review';   // billing & stock screens can be switched on later in Settings if a client asks
+    var hints = { review: 'Departments report sales, collections, expenses, purchases and wastage; you review them, scan receipts and get insights.',
+      pos: 'Bills, stock, customers, dues, bookings and reports for running the counter.', both: 'Review & insights plus billing and stock.' };
+    $$('[data-mode]').forEach(function (b) {
+      b.onclick = function () { chosenMode = b.getAttribute('data-mode'); };
+    });
     $$('[data-ind]').forEach(function (b) {
       b.onclick = function () { chosen = b.getAttribute('data-ind'); $$('[data-ind]').forEach(function (x) { x.classList.toggle('on', x === b); }); };
     });
     $('#setup-form').onsubmit = function (e) {
       e.preventDefault();
-      var d = formData(e.target); d.industry = chosen;
+      var d = formData(e.target); d.industry = chosen; d.mode = chosenMode;
       if (!d.businessName.trim()) { toast('Please enter the business name', true); return; }
-      api.call('setup', d).then(refreshInfo).then(function () { location.hash = 'dashboard'; shell(); render(); toast('All set. Welcome!'); }).catch(fail);
+      api.call('setup', d).then(refreshInfo).then(function () { location.hash = homePage(); shell(); render(); toast('All set. Welcome!'); }).catch(fail);
     };
   }
 
@@ -1196,7 +1210,8 @@
   // ---------------------------------------------------------------- settings
   PAGES.prefs = function (view) {
     setTitle('Settings');
-    var modNames = { dashboard: 'Dashboard', pos: 'New sale (billing)', sales: 'Sales list', items: label('items'), purchases: 'Purchases', customers: label('customers'), suppliers: 'Suppliers',
+    var modNames = { overview: 'Overview', daily: 'Daily numbers', scan: 'Scan receipts', entries: 'All entries', review: 'Spot check & insights', departments: 'Departments', stock: 'Stock (purchased vs supplied vs in hand)', vault: 'Customer vault', guide: 'Guide for my business',
+      dashboard: 'Billing dashboard (full billing software, only if a client asks)', pos: 'New sale (billing)', sales: 'Sales list', items: label('items'), purchases: 'Purchases', customers: label('customers'), suppliers: 'Suppliers',
       expenses: 'Expenses', appointments: (P.appointmentLabel || 'Appointment') + 's', staff: 'Staff', reports: 'Reports', settings: 'Settings', data: 'Backup & data' };
     view.innerHTML = '<form class="panel stack" id="pf"><div class="panel-head"><h2>Business details</h2></div><div class="form-grid">' +
       '<label class="field">Business name<input name="businessName" id="pf-name" value="' + esc(S.businessName) + '"></label>' +
@@ -1212,7 +1227,12 @@
       '<label class="field">Default tax %<input type="number" step="any" name="taxRate" id="pf-tax" value="' + esc(S.taxRate) + '"></label>' +
       '<label class="field">Your tax number<input name="taxId" id="pf-taxid" value="' + esc(S.taxId) + '"></label>' +
       '<label class="check"><input type="checkbox" name="taxInclusive" id="pf-incl"' + (S.taxInclusive ? ' checked' : '') + '> Prices already include tax</label>' +
-      '</div><div class="panel-head" style="margin-top:8px"><h2>Billing & stock</h2></div><div class="form-grid">' +
+      '</div>' + (has('overview') || has('review') ? '<div class="panel-head" style="margin-top:8px"><h2>Review checks</h2><span class="muted">When the app should raise a flag</span></div><div class="form-grid">' +
+        '<label class="field">Day splits into halves at<input type="time" name="halfDaySplit" id="pf-split" value="' + esc(S.halfDaySplit || '15:00') + '"></label>' +
+        '<label class="field">Flag a price rise above (%)<input type="number" step="any" name="priceAlertPct" id="pf-price" value="' + esc(S.priceAlertPct) + '"></label>' +
+        '<label class="field">Flag wastage above (% of purchases)<input type="number" step="any" name="wastageAlertPct" id="pf-waste" value="' + esc(S.wastageAlertPct) + '"></label>' +
+        '<label class="field">Flag collection short by more than (%)<input type="number" step="any" name="collectionGapPct" id="pf-gap" value="' + esc(S.collectionGapPct) + '"></label></div>' : '') +
+      '<div' + (has('pos') ? '' : ' hidden') + '><div class="panel-head" style="margin-top:8px"><h2>Billing & stock</h2></div><div class="form-grid">' +
       '<label class="field">Bill number prefix<input name="invoicePrefix" id="pf-ip" value="' + esc(S.invoicePrefix) + '"></label>' +
       '<label class="field">Purchase number prefix<input name="purchasePrefix" id="pf-pp" value="' + esc(S.purchasePrefix) + '"></label>' +
       '<label class="field">Default reorder level<input type="number" name="lowStockDefault" id="pf-low" value="' + esc(S.lowStockDefault) + '"></label>' +
@@ -1220,9 +1240,9 @@
       '<label class="field">Loyalty points (% of bill)<input type="number" step="any" name="loyaltyPercent" id="pf-loy" value="' + esc(S.loyaltyPercent) + '"></label>' +
       '<label class="field wide">Receipt footer<input name="receiptFooter" id="pf-foot" value="' + esc(S.receiptFooter) + '"></label>' +
       '<label class="check"><input type="checkbox" name="allowNegativeStock" id="pf-neg"' + (S.allowNegativeStock ? ' checked' : '') + '> Allow selling more than the stock shown</label>' +
-      '</div><div class="panel-head" style="margin-top:8px"><h2>Screens</h2><span class="muted">Turn off what you do not need</span></div><div class="form-grid">' +
+      '</div></div><div class="panel-head" style="margin-top:8px"><h2>Screens</h2><span class="muted">Turn off what you do not need</span></div><div class="form-grid">' +
       INFO.allModules.filter(function (m) { return m !== 'settings'; }).map(function (m) { return '<label class="check"><input type="checkbox" data-mod="' + m + '" id="pf-m-' + m + '"' + (has(m) ? ' checked' : '') + '> ' + esc(modNames[m] || m) + '</label>'; }).join('') +
-      '</div><div class="panel-head" style="margin-top:8px"><h2>AI bill reading</h2></div>' +
+      '</div><div class="panel-head" style="margin-top:8px"><h2>AI receipt reading</h2><span class="muted">Optional. Without it, receipts are read on the phone.</span></div>' +
       (api.mode === 'remote' ? '<p class="muted">' + (api.health && api.health.ai ? 'Enabled on the server.' : 'Set GOOGLE_API_KEY on the server to turn this on.') + '</p>'
         : '<div class="form-grid"><label class="field">Google Gemini API key (kept on this device only)<input type="password" id="pf-aikey" autocomplete="off" value="' + esc(lsGet(LS_AIKEY) || '') + '"></label>' +
           '<label class="field">Model<input name="geminiModel" id="pf-model" value="' + esc(S.geminiModel) + '"></label></div>') +
@@ -1236,7 +1256,11 @@
       var go2 = indChanged ? confirmBox('Switch to ' + Industries.get(d.industry).name + '? Your data stays. Screens, words and fields change, and the screens list resets to that type’s default.', 'Switch') : Promise.resolve(true);
       go2.then(function (ok) {
         if (!ok) return;
-        if (indChanged) { d.modules = Industries.get(d.industry).modules; d.taxRate = Industries.get(d.industry).taxRate; }
+        if (indChanged) {
+          var np = Industries.get(d.industry), hasPos = d.modules.indexOf('pos') >= 0, hasRev = d.modules.indexOf('overview') >= 0;
+          d.modules = (hasRev ? Industries.REVIEW_MODULES : []).concat(hasPos || !hasRev ? np.modules : ['settings', 'data']);
+          d.taxRate = np.taxRate;
+        }
         return api.call('saveSettings', d).then(refreshInfo).then(function () { shell(); render(); toast('Settings saved'); });
       }).catch(fail);
     };
@@ -1256,7 +1280,7 @@
   }
   PAGES.data = function (view) {
     setTitle('Backup & data');
-    var exportables = ['items', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'appointments', 'staff', 'stockMoves'];
+    var exportables = (has('overview') ? ['entries', 'departments', 'receipts'] : []).concat(has('pos') || has('items') ? ['items', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'appointments', 'staff', 'stockMoves'] : []);
     var names = { items: label('items'), customers: label('customers'), sales: label('sale') + 's', stockMoves: 'Stock movements' };
     view.innerHTML = '<div class="grid grid-2">' +
       '<div class="panel stack"><h2>Where your data lives</h2>' +
@@ -1267,7 +1291,7 @@
       '<div class="panel stack"><h2>Spreadsheets (CSV)</h2><p class="muted">Open these in Excel or Google Sheets.</p><div class="chips">' +
       exportables.map(function (c) { return '<button type="button" class="chip" data-csv="' + c + '">' + esc(names[c] || (c.charAt(0).toUpperCase() + c.slice(1))) + '</button>'; }).join('') + '</div>' +
       '<div class="row"><button type="button" class="btn" data-imp="items">Import ' + esc(label('items').toLowerCase()) + '</button><button type="button" class="btn" data-imp="customers">Import ' + esc(label('customers').toLowerCase()) + '</button><button type="button" class="btn" data-imp="suppliers">Import suppliers</button></div></div>' +
-      '<div class="panel stack"><h2>Example data</h2><p class="muted">Adds a few sample ' + esc(label('items').toLowerCase()) + ', a customer, a supplier and a staff member for this business type.</p><div><button type="button" class="btn" id="dt-samples">Add example data</button></div></div>' +
+      '<div class="panel stack"><h2>Example data</h2><p class="muted">' + (has('overview') && !has('pos') ? 'Adds 30 days of example department numbers, purchase bills and expenses, with a few problems planted for the review to find.' : 'Adds a few sample ' + esc(label('items').toLowerCase()) + ', a customer, a supplier and a staff member for this business type.') + '</p><div><button type="button" class="btn" id="dt-samples">Add example data</button></div></div>' +
       '<div class="panel stack"><h2>Start over</h2><p class="muted">Deletes every record. Download a backup first.</p><div class="row"><button type="button" class="btn danger" id="dt-reset">Erase all data</button></div></div></div>';
     bindConnectionPanel(view);
     $('#dt-backup').onclick = function () { api.call('exportAll').then(function (db) { download('bizcore-backup-' + today() + '.json', JSON.stringify(db), 'application/json'); }).catch(fail); };
@@ -1282,7 +1306,7 @@
     };
     $$('[data-csv]', view).forEach(function (b) { b.onclick = function () { exportCSV(b.dataset.csv); }; });
     $$('[data-imp]', view).forEach(function (b) { b.onclick = function () { importCSVDialog(b.dataset.imp); }; });
-    $('#dt-samples').onclick = function () { api.call('loadSamples').then(function () { toast('Example data added'); }).catch(fail); };
+    $('#dt-samples').onclick = function () { api.call(has('overview') && !has('pos') ? 'loadReviewSamples' : 'loadSamples').then(function () { toast('Example data added'); }).catch(fail); };
     $('#dt-reset').onclick = function () {
       modal({ title: 'Erase all data', body: '<p>Type <b>ERASE</b> to delete every record. Your settings are kept.</p><label class="field">Confirm<input name="word" id="rs-word" autocomplete="off"></label>', submitText: 'Erase everything', danger: true,
         onSubmit: function (d) { if (d.word !== 'ERASE') throw new Error('Type ERASE in capitals to confirm'); return api.call('resetAll', true).then(refreshInfo).then(function () { toast('All records erased'); render(); }); } });
@@ -1364,6 +1388,16 @@
     return nativeCall('Filesystem', 'writeFile', { path: name, data: text, directory: 'CACHE', encoding: 'utf8' })
       .then(function (r) { return nativeCall('Share', 'share', { title: name, url: r.uri, dialogTitle: 'Save or send ' + name }); });
   }
+
+  // Building blocks for the review screens (public/review-ui.js).
+  window.BizApp = {
+    PAGES: PAGES, NAV: NAV, api: api,
+    get S() { return S; }, get P() { return P; }, get INFO() { return INFO; },
+    $: $, $$: $$, esc: esc, money: money, qtyFmt: qtyFmt, today: today, fmtDate: fmtDate, label: label, has: has, opt: opt, formData: formData,
+    debounce: debounce, toast: toast, fail: fail, modal: modal, confirmBox: confirmBox, emptyState: emptyState, download: download, readFile: readFile,
+    setTitle: setTitle, render: render, refreshInfo: refreshInfo, go: go, niceMax: niceMax, short: short, waLink: waLink,
+    lsGet: lsGet, lsSet: lsSet, LS_AIKEY: LS_AIKEY, http: http, serverBase: serverBase, native: native, embedded: embedded, AI: AI, Engine: Engine, Industries: Industries
+  };
 
   function boot() {
     if (native) {

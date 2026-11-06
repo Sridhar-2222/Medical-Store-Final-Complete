@@ -46,6 +46,27 @@ function safeEqual(a, b) {
   return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
 }
 
+function htmlEsc(v) { return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function vaultPage(v) {
+  const label = {}; (v.labels || []).forEach((l) => { label[l.key] = l; });
+  const t = new Date().toISOString().slice(0, 10);
+  const recs = v.records.map((r) => '<li><b>' + htmlEsc((label[r.kind] || {}).label || r.kind) + (r.title ? ': ' + htmlEsc(r.title) : '') + '</b><span>' + htmlEsc(r.date) +
+    (r.dueDate ? ' · ' + htmlEsc((label[r.kind] || {}).dueLabel || 'Due') + ' <b class="' + (r.dueDate < t ? 'over' : '') + '">' + htmlEsc(r.dueDate) + '</b>' : '') + '</span>' + (r.details ? '<p>' + htmlEsc(r.details) + '</p>' : '') + '</li>').join('');
+  const bills = v.bills.map((b) => '<li><b>' + htmlEsc(b.number) + ' · ' + htmlEsc(b.total.toFixed(2)) + '</b><span>' + htmlEsc(b.date) + (b.due ? ' · due ' + htmlEsc(b.due.toFixed(2)) : '') + '</span><p>' + b.lines.map((l) => htmlEsc(l.name + ' × ' + l.qty)).join(', ') + '</p></li>').join('');
+  const msgs = v.messages.slice(0, 30).map((m) => '<li><span>' + htmlEsc(m.date) + '</span><p>' + htmlEsc(m.text) + '</p></li>').join('');
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">' +
+    '<title>' + htmlEsc(v.customer.name) + ' · ' + htmlEsc(v.shop.name) + ' vault</title><style>' +
+    ':root{--bg:#f3f5f9;--card:#fff;--fg:#172033;--mut:#5b6579;--ink:#2448c8;--bad:#b3261e;--line:#d8dee9}@media (prefers-color-scheme:dark){:root{--bg:#0f1420;--card:#161d2c;--fg:#e6eaf3;--mut:#9aa5bb;--ink:#7d9bff;--bad:#ff8a80;--line:#2b3549;color-scheme:dark}}' +
+    'body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}main{max-width:720px;margin:0 auto;padding:20px 16px 48px}h1{font-size:1.4rem;margin:0}h2{font-size:1rem;margin:24px 0 8px}' +
+    '.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px}li span{display:block;color:var(--mut);font-size:13px}li p{margin:4px 0 0}.over{color:var(--bad)}.mut{color:var(--mut)}' +
+    '</style></head><body><main><div class="card"><div class="mut">Your vault at</div><h1>' + htmlEsc(v.shop.name) + '</h1><div class="mut">' + htmlEsc([v.shop.address, v.shop.phone].filter(Boolean).join(' · ')) + '</div>' +
+    '<p>Hello ' + htmlEsc(v.customer.name) + '. Your records, bills and messages from ' + htmlEsc(v.shop.name) + ' are kept here.' + (v.customer.points ? ' Loyalty points: <b>' + htmlEsc(v.customer.points) + '</b>.' : '') + (v.customer.balance > 0 ? ' Balance due: <b>' + htmlEsc(v.customer.balance.toFixed(2)) + '</b>.' : '') + '</p></div>' +
+    '<h2>Records</h2>' + (recs ? '<ul>' + recs + '</ul>' : '<p class="mut">Nothing saved yet.</p>') +
+    (bills ? '<h2>Bills</h2><ul>' + bills + '</ul>' : '') +
+    '<h2>Messages from ' + htmlEsc(v.shop.name) + '</h2>' + (msgs ? '<ul>' + msgs + '</ul>' : '<p class="mut">No messages yet.</p>') +
+    '<p class="mut" style="margin-top:28px">Private link: only people you share it with can open it.</p></main></body></html>';
+}
+
 async function createServer(options = {}) {
   const env = Object.assign({}, process.env, options.env || {});
   const dataDir = path.resolve(env.DATA_DIR || path.join(ROOT, 'data'));
@@ -150,7 +171,41 @@ async function createServer(options = {}) {
             return send(res, 200, { ok: true, result: lines });
           } catch (e) { return send(res, 502, { ok: false, error: e.message }); }
         }
+        // Other software (billing machine, POS, accounting) can push numbers here.
+        // Body: JSON array of rows, or {entries:[...]}; see README "Connect your billing software".
+        if (p === '/api/entries' && req.method === 'POST') {
+          const body = JSON.parse((await readBody(req)) || '[]');
+          try { return send(res, 200, { ok: true, result: engine.importEntries(Array.isArray(body) ? body : body.entries) }); }
+          catch (e) { return send(res, e.userError ? 400 : 500, { ok: false, error: e.message }); }
+        }
+        if (p === '/api/ai/read-report' && req.method === 'POST') {
+          if (!aiKey) return send(res, 400, { ok: false, error: 'AI is not configured on the server (set GOOGLE_API_KEY)' });
+          const body = JSON.parse(await readBody(req));
+          try { return send(res, 200, { ok: true, result: await AI.readSalesReport(options.fetch || globalThis.fetch, { apiKey: aiKey, model: env.GEMINI_MODEL, base64: body.base64, mimeType: body.mimeType, presetName: engine.info().preset.name }) }); }
+          catch (e) { return send(res, 502, { ok: false, error: e.message }); }
+        }
+        if (p === '/api/ai/read-receipt' && req.method === 'POST') {
+          if (!aiKey) return send(res, 400, { ok: false, error: 'AI is not configured on the server (set GOOGLE_API_KEY)' });
+          const body = JSON.parse(await readBody(req));
+          const info = engine.info();
+          const dep = body.departmentId ? (engine.get('departments', body.departmentId) || {}).name : '';
+          try {
+            const out = await AI.readReceipt(options.fetch || globalThis.fetch, { apiKey: aiKey, model: env.GEMINI_MODEL || info.settings.geminiModel,
+              base64: body.base64, mimeType: body.mimeType, presetName: info.preset.name, department: dep,
+              hints: info.preset.review.receiptHints, categories: info.preset.review.costCategories.map((c) => c.name), expectType: body.type });
+            return send(res, 200, { ok: true, result: out });
+          } catch (e) { return send(res, 502, { ok: false, error: e.message }); }
+        }
         return send(res, 404, { ok: false, error: 'Not found' });
+      }
+
+      // ---- Customer Vault: a private, read-only page for one customer (no PIN; the long link is the key) ----
+      const vm = p.match(/^\/v\/([a-z0-9]{16,40})$/);
+      if (vm) {
+        const v = engine.vaultByToken(vm[1]);
+        if (!v) return send(res, 404, 'This vault link is not valid any more. Ask the shop for a new one.');
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'no-referrer' });
+        return res.end(vaultPage(v));
       }
 
       // ---- static files ----

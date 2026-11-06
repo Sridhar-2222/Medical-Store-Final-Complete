@@ -91,3 +91,17 @@ test('Supabase mirror queues while offline, syncs later, and restores a fresh se
   assert.equal(info.counts.items, 1);
   s2.server.close(); s2.server.closeAllConnections();
 });
+
+test('customer vault link opens without the shop PIN, data API stays locked', async () => {
+  const s = await start({ DATA_DIR: tmp(), APP_PIN: '1111' });
+  const c = (await s.rpc('save', ['customers', { name: 'Ravi <b>', phone: '1' }], '1111')).body.result;
+  await s.rpc('saveVaultRecord', [{ customerId: c.id, kind: 'bill', title: 'Visit' }], '1111');
+  const tok = (await s.rpc('ensureVaultToken', [c.id], '1111')).body.result;
+  const page = await fetch(s.url + '/v/' + tok);
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /Ravi &lt;b&gt;/); assert.match(html, /Visit/);
+  assert.equal((await fetch(s.url + '/v/' + 'x'.repeat(24))).status, 404);
+  assert.equal((await s.rpc('vault', [c.id])).status, 401);
+  s.server.close(); s.server.closeAllConnections();
+});
