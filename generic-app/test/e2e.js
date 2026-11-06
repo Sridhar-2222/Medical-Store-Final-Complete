@@ -1,4 +1,4 @@
-// Browser smoke test: node test/e2e.js [url]   (needs Playwright; starts its own server if no url)
+// Billing (POS) screens smoke test: node test/e2e.js   (needs Playwright; starts its own server)
 'use strict';
 const { chromium } = require('playwright');
 const path = require('path');
@@ -19,10 +19,9 @@ const { createServer } = require('../server/server');
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message + ' @ ' + page.url() + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g/.test(m.text()) && !/ERR_/.test(m.text())) errors.push(m.text()); });
-  await page.goto(url);
-  await page.click('[data-ind="pharmacy"]');
-  await page.fill('#setup-name', 'Test Medicals');
-  await page.click('#setup-form button[type=submit]');
+  // Billing screens are only switched on when a client asks for them.
+  if (srv) srv.engine.setup({ industry: 'pharmacy', businessName: 'Test Medicals', mode: 'pos', loadSamples: true });
+  await page.goto(url + '#dashboard');
   await page.waitForSelector('.tiles');
   // sale
   await page.goto(url + '#pos');

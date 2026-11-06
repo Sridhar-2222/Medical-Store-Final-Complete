@@ -2,9 +2,9 @@
  * Pages and files: try the network first (so updates arrive), fall back to the saved copy.
  * API calls are never cached here; the app keeps its own offline copy of the data. */
 'use strict';
-var CACHE = 'bizcore-app-v3';
+var CACHE = 'bizcore-app-v4';
 var CORE = ['./', 'index.html', 'app.css', 'app.js', 'core/industries.js', 'core/engine.js', 'core/ai.js', 'core/review.js', 'core/ocr-parse.js', 'review-ui.js', 'manifest.webmanifest', 'icon.svg',
-  'vendor/ocr/tesseract.min.js', 'vendor/ocr/worker.min.js', 'vendor/ocr/tesseract-core-lstm.wasm.js', 'vendor/ocr/lang/eng.traineddata.gz'];
+  'vendor/ocr/tesseract.min.js', 'vendor/ocr/worker.min.js', 'vendor/ocr/tesseract-core-lstm.wasm.js', 'vendor/ocr/lang/eng.traineddata'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) {

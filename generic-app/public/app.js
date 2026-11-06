@@ -81,7 +81,10 @@
       .then(function (r) {
         clearTimeout(timer);
         if (r.status === 401) { askPin(); var e = new Error('PIN required'); e.auth = true; throw e; }
-        return r.json().then(function (j) { if (!j.ok && r.status >= 500) { var se = new Error(j.error || 'Server error'); se.server = true; throw se; } return j; });
+        return r.json().then(function (j) { if (!j.ok && r.status >= 500) { var se = new Error(j.error || 'Server error'); se.server = true; throw se; } return j; }, function () {
+          // Not our server answering (Wi-Fi login page, proxy, wrong address): treat as no connection.
+          var ne = new Error('No connection to the shop server'); ne.network = true; throw ne;
+        });
       }, function (err) { clearTimeout(timer); var e = new Error('No connection to the shop server'); e.network = true; e.cause = err; throw e; });
   }
   function rpc(method, args) {

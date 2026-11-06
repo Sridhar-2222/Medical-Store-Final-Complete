@@ -1,13 +1,49 @@
-# BizCore — one business app for many industries
+# BizCore: business review platform for any industry
 
-BizCore is a generic version of the Medical Store app. The same code runs a pharmacy,
-grocery store, restaurant, salon, clinic, clothing shop, electronics/mobile shop,
-hardware store, bakery, garage, gym or a service business. You pick the business
-type on first start and the app changes its words, fields, tax rate and screens.
+BizCore gives a business owner **vision and review** of their business. It is not billing or hotel
+software. The owner enters (or photographs, or imports) the numbers the business already produces,
+and BizCore interprets them:
 
-It has **no npm dependencies** and **does not need Supabase, GitHub or any internet
-service to work**. Those are optional extras that the app falls back from when they
-are down.
+**Inputs**
+- Revenue / sales, collections (cash, UPI, card), and **walk-ins** per department, morning and evening
+- **Purchase bills**, expenses (fixed or variable) and miscellaneous costs
+- Inventory: goods received, stock **supplied / issued** to departments, **stock counts**, wastage
+- By typing (Daily numbers), by **photo** (purchase bills, vouchers, issue slips, stock sheets, the
+  printed **day-end sales report**: read on the phone offline, or by AI), or by **import** from a
+  spreadsheet or the client's billing software (CSV, or the `/api/entries` web address)
+
+**Analysis** (any day to any day, random days, chosen days, morning or evening, any departments)
+- Sales, collections, expenses, purchases, profit; walk-ins and average spend per customer
+- Day-on-day % change in sales; morning vs evening; department by department
+- Stock used against sales; purchased vs supplied vs stock in hand, with missing stock in ₹
+- Flags: collections short of sales, price rises vs earlier bills, short deliveries, wastage,
+  expense spikes, low spend per walk-in, unusual stock use, missing data
+- Key ratios per business type with healthy ranges (food cost, expiry loss, OTA commission…)
+
+**Customer vault** (communication platform between the business and its customers)
+- Every customer, patient or guest has a vault: bills, records that matter in that business
+  (prescriptions, warranties, service history, memberships, occasions…), reminders and messages
+- The owner sees who is due (refill, service, renewal, birthday…) and sends a ready WhatsApp
+  message in one tap; every message is kept in the vault
+- With a shop server, each customer gets a private vault link to open any time
+
+Covered business types: General, Pharmacy, Grocery, Restaurant / Café, Hotel, Salon / Spa, Clinic,
+Clothing, Electronics, Hardware, Bakery, Auto service, Gym / Fitness, Professional / home services.
+See **[docs/BUSINESS-GUIDE.md](docs/BUSINESS-GUIDE.md)** for departments, what to photograph, what
+the owner learns, what customers get, and the key ratios for each.
+
+Billing, stock-keeping and booking screens from the earlier version still exist for a client who
+asks for them (Settings → Screens), but they are off by default.
+
+### Connect your billing software
+Send rows as JSON to `POST https://<your-server>/api/entries` with header `x-app-pin: <PIN>`:
+```json
+[{"date":"2026-11-05","department":"Restaurant","type":"sales","amount":32000},
+ {"date":"2026-11-05","department":"Restaurant","type":"collection","amount":20000,"method":"Cash"},
+ {"date":"2026-11-05","department":"Restaurant","type":"walk-ins","amount":96,"half":"evening"}]
+```
+Types: sales, collection, walk-ins, expense, purchase, received, wastage, misc. The same columns work
+as a CSV in **All entries → Import**.
 
 ---
 
@@ -176,10 +212,12 @@ fails (for example, not enough stock) nothing is half-saved.
 ## Tests
 
 ```bash
-npm test            # engine + server (incl. Supabase outage & recovery)
+npm test            # engine, review, server (incl. Supabase outage & recovery)
 npm run test:e2e    # browser test with Playwright, if installed
 node test/offline-e2e.js   # go offline, keep billing, reconnect, check sync
 node test/native-sim.js    # Android app logic: phone-only mode, server connect, offline, share sheet
+node test/review-e2e.js    # review screens incl. reading a bill photo and a day-end report on the device
+node scripts/gen-guide.js  # rebuild docs/BUSINESS-GUIDE.md after changing core/industries.js
 npm run build       # rebuild dist/ after changing public/ or core/
 ```
 

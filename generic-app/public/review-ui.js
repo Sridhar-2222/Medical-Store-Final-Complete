@@ -32,7 +32,7 @@
   function halfTxt(h) { return h === 'first' ? 'First half' : h === 'second' ? 'Second half' : 'Full day'; }
   function sevPill(s) { return '<span class="pill ' + (s === 'high' ? 'bad' : s === 'medium' ? 'warn' : 'ink') + '">' + (s === 'high' ? 'Check now' : s === 'medium' ? 'Look into' : 'Note') + '</span>'; }
   function typePill(t) {
-    var cls = { sale: 'good', collection: 'good', expense: 'warn', purchase: 'ink', received: 'ink', wastage: 'bad', misc: '', supply: 'ink', stock: '' }[t] || '';
+    var cls = { sale: 'good', collection: 'good', expense: 'warn', purchase: 'ink', received: 'ink', wastage: 'bad', misc: '', supply: 'ink', stock: '', walkin: 'good' }[t] || '';
     return '<span class="pill ' + cls + '">' + esc(TL[t] || t) + '</span>';
   }
   function costCats() { return (A.P.review && A.P.review.costCategories) || []; }
@@ -93,10 +93,34 @@
       { l: 'Estimated profit', v: money(r.profit), h: r.margin !== null ? pctTxt(r.margin) + ' of sales' : '', cls: r.profit < 0 ? 'danger' : '' },
       { l: 'Fixed vs variable', v: money(t.fixed) + ' / ' + money(t.variable), h: pctTxt(r.fixedShare) + ' of expenses are fixed' }
     ];
+    if (t.walkin) list.splice(1, 0, { l: 'Walk-ins', v: String(t.walkin), h: Math.round(per.walkin) + ' a day · ' + money(r.avgSpend) + ' per customer' + (b && b.perDay.walkin ? ' ' + delta(per.walkin, bper.walkin, true) : '') });
+    if (t.used) list.push({ l: 'Stock used', v: money(t.used), h: pctTxt(r.used) + ' of sales' + (b && b.ratios.used ? ' · usual ' + pctTxt(b.ratios.used) : '') });
     if (t.received) list.push({ l: 'Goods received', v: money(t.received), h: pctTxt(r.received) + ' of purchases', cls: r.received < 98 ? 'alert' : '' });
     return '<div class="tiles">' + list.map(function (x) {
       return '<div class="tile ' + (x.cls || '') + '"><span class="label">' + esc(x.l) + '</span><span class="value">' + esc(x.v) + '</span><span class="hint">' + x.h + '</span></div>';
     }).join('') + '</div>';
+  }
+
+  // Day by day: sales, growth vs previous day, walk-ins, spend, costs, profit, stock used
+  function dayTable(days) {
+    var rows = days.filter(function (d) { return d.count; });
+    if (!rows.length) return '';
+    return '<div class="panel"><div class="panel-head"><h2>Day by day</h2><span class="muted">change is against the previous day with sales</span></div><div class="table-wrap"><table><thead><tr><th>Date</th><th class="num">Sales</th><th class="num">Change</th><th class="num">Walk-ins</th><th class="num">Per customer</th><th class="num">Expenses</th><th class="num">Purchases</th><th class="num">Profit</th><th class="num">Stock used</th></tr></thead><tbody>' +
+      rows.slice().reverse().map(function (d) {
+        var t = d.totals;
+        var ch = d.change === null ? '<span class="muted">–</span>' : '<span class="delta ' + (d.change >= 0 ? 'good' : 'bad') + '">' + (d.change >= 0 ? '▲ ' : '▼ ') + Math.abs(Math.round(d.change)) + '%</span>';
+        return '<tr><td>' + esc(shortDate(d.date)) + '</td><td class="num">' + money(t.sale) + '</td><td class="num">' + ch + '</td><td class="num">' + (t.walkin || '–') + '</td><td class="num">' + (d.avgSpend ? money(d.avgSpend) : '–') + '</td>' +
+          '<td class="num">' + money(t.expense + t.misc) + '</td><td class="num">' + money(t.purchase) + '</td><td class="num"' + (d.profit < 0 ? ' style="color:var(--bad)"' : '') + '>' + money(d.profit) + '</td><td class="num">' + (d.usedPct ? pctTxt(d.usedPct) : '–') + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+  }
+  function halvesTable(h) {
+    if (!h || !(h.first.sale || h.second.sale || h.first.walkin || h.second.walkin)) return '';
+    var split = A.S.halfDaySplit || '15:00';
+    var rows = [['Morning (before ' + split + ')', h.first], ['Evening (after ' + split + ')', h.second]];
+    if (h.unsplit.sale || h.unsplit.walkin) rows.push(['Whole day, not split', h.unsplit]);
+    return '<div class="panel"><div class="panel-head"><h2>Morning vs evening</h2></div><div class="table-wrap"><table><thead><tr><th></th><th class="num">Sales</th><th class="num">Walk-ins</th><th class="num">Per customer</th><th class="num">Collected</th><th class="num">Expenses</th></tr></thead><tbody>' +
+      rows.map(function (r) { var t = r[1]; return '<tr><td><b>' + esc(r[0]) + '</b></td><td class="num">' + money(t.sale) + '</td><td class="num">' + (t.walkin || '–') + '</td><td class="num">' + (t.walkin ? money(t.sale / t.walkin) : '–') + '</td><td class="num">' + money(t.collection) + '</td><td class="num">' + money(t.expense + t.misc) + '</td></tr>'; }).join('') +
+      '</tbody></table></div></div>';
   }
 
   // ------------------------------------------------------------ Overview
@@ -119,6 +143,7 @@
         '<div class="panel"><div class="panel-head"><h2>In short</h2></div><ul class="summary">' + res.summary.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div></div>' +
         kpiPanel(res.kpis) +
         '<div class="panel"><div class="panel-head"><h2>Sales and costs by day</h2></div>' + pairChart(res.byDay) + '</div>' +
+        halvesTable(res.halves) + dayTable(res.byDay.slice(-7)) +
         '<div class="panel"><div class="panel-head"><h2>Departments</h2><a class="btn sm" href="#departments">Manage</a></div>' + deptTable(res.byDepartment) + '</div>';
       $$('[data-days]', view).forEach(function (b) { b.onclick = function () { overviewDays = +b.dataset.days; A.render(); }; });
       $('#ov-spot', view).onclick = function () { reviewState.mode = 'random'; reviewState.count = 3; reviewState.seed = String(Date.now()); reviewState.run = true; A.go('review'); };
@@ -128,7 +153,7 @@
   // ------------------------------------------------------------ Daily numbers
   var dailyState = { date: '', half: '' };
   var SHEET_COLS = [
-    ['sale', 'Sales (billed)'], ['cash', 'Collected: cash'], ['upi', 'Collected: UPI'], ['card', 'Collected: card'], ['otherCollection', 'Collected: other'],
+    ['walkin', 'Walk-ins (customers)'], ['sale', 'Sales (billed)'], ['cash', 'Collected: cash'], ['upi', 'Collected: UPI'], ['card', 'Collected: card'], ['otherCollection', 'Collected: other'],
     ['expense', 'Expenses'], ['purchase', 'Purchases'], ['received', 'Goods received'], ['wastage', 'Wastage'], ['misc', 'Miscellaneous']
   ];
   A.PAGES.daily = function (view) {
@@ -189,7 +214,7 @@
       '<label class="field"><span data-for="sale collection expense purchase received wastage misc stock">Department</span><span data-for="supply">Supplied to (department)</span><select name="departmentId" id="en-dep">' + A.opt(activeDeps(depList).map(function (d) { return { value: d.id, text: d.name }; }), e.departmentId, 'General / whole business') + '</select></label>' +
       '<label class="field">Date<input type="date" name="date" id="en-date" value="' + esc(e.date) + '"></label>' +
       '<label class="field">Time (sets the half of day)<input type="time" name="time" id="en-time" value="' + esc(e.time || '') + '"></label>' +
-      '<label class="field">Amount<input type="number" inputmode="decimal" step="any" name="amount" id="en-amount" value="' + esc(e.amount || '') + '" placeholder="Total of the lines if empty"></label>' +
+      '<label class="field"><span data-for="sale collection expense purchase received wastage misc supply stock">Amount</span><span data-for="walkin">Number of walk-ins</span><input type="number" inputmode="decimal" step="any" name="amount" id="en-amount" value="' + esc(e.amount || '') + '" placeholder="Total of the lines if empty"></label>' +
       '<p class="muted wide" data-for="supply stock">List each item and its quantity below. Money is optional; values come from the latest purchase rates.</p>' +
       '<label class="field" data-for="collection">Received by<select name="method" id="en-method">' + A.opt(R.METHODS, e.method || 'Cash') + '</select></label>' +
       '<label class="field" data-for="expense purchase wastage misc">Category<input name="category" id="en-cat" list="en-cats" value="' + esc(e.category || '') + '"><datalist id="en-cats">' + cats.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist></label>' +
@@ -258,7 +283,7 @@
     ocr.loading = (window.Tesseract ? Promise.resolve() : loadScript(base + 'tesseract.min.js')).then(function () {
       return window.Tesseract.createWorker('eng', 1, {
         workerPath: base + 'worker.min.js', corePath: base + 'tesseract-core-lstm.wasm.js', langPath: base + 'lang',
-        workerBlobURL: false, cacheMethod: 'none',
+        workerBlobURL: false, cacheMethod: 'none', gzip: false,   // Android packaging unzips .gz files, so ship it unzipped
         logger: function (m) { if (progress && m && m.status) progress(m.status, m.progress); }
       });
     }).then(function (w) { ocr.worker = w; ocr.loading = null; return w; }, function (err) {
@@ -310,7 +335,7 @@
       var aiOk = aiAvailable();
       view.innerHTML = '<div class="panel stack"><h2>Read a bill</h2>' +
         '<div class="form-grid"><label class="field">Department<select id="sc-dep">' + A.opt(activeDeps(depList).map(function (d) { return { value: d.id, text: d.name }; }), scanState.departmentId, 'General / whole business') + '</select></label>' +
-        '<label class="field">Bill type<select id="sc-type">' + A.opt([{ value: 'purchase', text: 'Purchase bill' }, { value: 'expense', text: 'Expense voucher' }, { value: 'supply', text: 'Supply / issue slip' }, { value: 'stock', text: 'Stock count sheet' }, { value: 'wastage', text: 'Wastage sheet' }, { value: 'misc', text: 'Miscellaneous' }], scanState.type) + '</select></label>' +
+        '<label class="field">Bill type<select id="sc-type">' + A.opt([{ value: 'purchase', text: 'Purchase bill' }, { value: 'expense', text: 'Expense voucher' }, { value: 'salesreport', text: 'Day-end sales report (printout)' }, { value: 'supply', text: 'Supply / issue slip' }, { value: 'stock', text: 'Stock count sheet' }, { value: 'wastage', text: 'Wastage sheet' }, { value: 'misc', text: 'Miscellaneous' }], scanState.type) + '</select></label>' +
         '<label class="field">Read with<select id="sc-engine">' + A.opt([{ value: 'auto', text: aiOk ? 'Best available (AI)' : 'Best available (on this phone)' }, { value: 'ai', text: 'AI (needs internet)' }, { value: 'device', text: 'On this phone (works offline)' }], scanState.engine) + '</select></label></div>' +
         '<div class="row"><label class="btn primary" for="sc-camera">📷 Take photo</label><input type="file" id="sc-camera" accept="image/*" capture="environment" hidden>' +
         '<label class="btn" for="sc-file">Choose image</label><input type="file" id="sc-file" accept="image/*" hidden>' +
@@ -329,6 +354,7 @@
         var file = e.target.files[0]; e.target.value = '';
         if (!file) return;
         var useAI = scanState.engine === 'ai' || (scanState.engine === 'auto' && aiAvailable());
+        if (scanState.type === 'salesreport') return readReport(file, useAI);
         status.textContent = 'Preparing photo…';
         var img;
         prepareImage(file).then(function (p) {
@@ -358,6 +384,57 @@
               return { out: out, engine: 'device', text: text };
             });
         }
+      }
+      function readReport(file, useAI) {
+        var img;
+        status.textContent = 'Preparing photo…';
+        prepareImage(file).then(function (p) {
+          img = p;
+          if (useAI) {
+            status.textContent = 'Reading the report with AI…';
+            var call = api.mode === 'remote' ? A.http('api/ai/read-report', { base64: img.jpegBase64, mimeType: 'image/jpeg' }, 60000).then(function (j) { if (!j.ok) throw new Error(j.error); return j.result; })
+              : A.AI.readSalesReport(window.fetch.bind(window), { apiKey: A.lsGet(A.LS_AIKEY), model: A.S.geminiModel, base64: img.jpegBase64, mimeType: 'image/jpeg', presetName: A.P.name });
+            return call.then(function (o) { return { o: o, text: '', engine: 'ai' }; }, function (err) { if (scanState.engine === 'ai') throw err; return dev(); });
+          }
+          return dev();
+        }).then(function (r) { status.textContent = 'Check the figures below.'; showReport(r.o, r.text, r.engine, img.preview); })
+          .catch(function (err) { status.textContent = err.message; A.toast(err.message, true); });
+        function dev() {
+          status.textContent = 'Reading on this phone…';
+          return deviceOcrWorker(function (s2, p2) { status.textContent = 'Reading on this phone: ' + s2 + (p2 ? ' ' + Math.round(p2 * 100) + '%' : ''); })
+            .then(function (w) { return w.recognize(img.canvas); }).then(function (res2) { var text = res2.data.text || ''; return { o: OCRParse.parseSalesReport(text), text: text, engine: 'device' }; });
+        }
+      }
+      function showReport(o, text, engine, preview) {
+        var box = $('#sc-result', view);
+        var depOpts = activeDeps(depList).map(function (d) { return { value: d.id, text: d.name }; });
+        box.innerHTML = '<form class="panel stack" id="sr-form"><div class="panel-head"><h2>Day-end sales report</h2><span class="pill ink">' + (engine === 'ai' ? 'Read by AI' : 'Read on phone') + '</span></div>' +
+          '<div class="scan-wrap">' + (preview ? '<img src="' + preview + '" alt="Report photo" class="scan-img">' : '') + '<div class="form-grid" style="flex:1;min-width:0">' +
+          '<label class="field">Date<input type="date" name="date" id="sr-date" value="' + esc(o.date || A.today()) + '"></label>' +
+          '<label class="field">Part of day<select name="half" id="sr-half">' + A.opt([{ value: '', text: 'Full day' }, { value: 'first', text: 'Morning' }, { value: 'second', text: 'Evening' }], '') + '</select></label>' +
+          '<label class="field">Department<select name="departmentId" id="sr-dep">' + A.opt(depOpts, scanState.departmentId || (depOpts[0] || {}).value) + '</select></label>' +
+          '<label class="field">Net sales<input type="number" step="any" name="sale" id="sr-sale" value="' + esc(o.sale || '') + '"></label>' +
+          '<label class="field">Cash<input type="number" step="any" name="cash" id="sr-cash" value="' + esc(o.cash || '') + '"></label>' +
+          '<label class="field">UPI<input type="number" step="any" name="upi" id="sr-upi" value="' + esc(o.upi || '') + '"></label>' +
+          '<label class="field">Card<input type="number" step="any" name="card" id="sr-card" value="' + esc(o.card || '') + '"></label>' +
+          '<label class="field">Other / online<input type="number" step="any" name="otherCollection" id="sr-other" value="' + esc(o.other || '') + '"></label>' +
+          '<label class="field">Walk-ins / bills / covers<input type="number" step="1" name="walkin" id="sr-walk" value="' + esc(o.walkins || '') + '"></label></div></div>' +
+          (text ? '<details><summary>Text read from the photo</summary><pre class="ocr-text">' + esc(text) + '</pre></details>' : '') +
+          '<p class="muted">Saving replaces this department\'s figures for that date and part of day on Daily numbers.</p>' +
+          '<div class="row"><button type="submit" class="btn primary">Save figures</button><button type="button" class="btn" id="sr-cancel">Discard</button></div></form>';
+        var f = $('#sr-form', box);
+        $('#sr-cancel', box).onclick = function () { box.innerHTML = ''; };
+        f.onsubmit = function (ev) {
+          ev.preventDefault();
+          var d = A.formData(f);
+          if (!d.departmentId) { A.toast('Choose the department', true); return; }
+          api.call('getDailySheet', d.date, d.half).then(function (rows) {
+            var row = rows.filter(function (r) { return r.departmentId === d.departmentId; })[0] || { departmentId: d.departmentId };
+            ['sale', 'cash', 'upi', 'card', 'otherCollection', 'walkin'].forEach(function (k) { row[k] = d[k]; });
+            return api.call('saveDailySheet', { date: d.date, half: d.half, rows: [row] });
+          }).then(function () { A.toast('Sales report saved'); box.innerHTML = ''; }).catch(A.fail);
+        };
+        box.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
       $('#sc-camera', view).onchange = onFile;
       $('#sc-file', view).onchange = onFile;
@@ -416,7 +493,7 @@
       view.innerHTML = '<div class="panel"><div class="panel-head"><input class="search" id="ent-search" placeholder="Search vendor, bill, note…" value="' + esc(entryFilter.search) + '">' +
         '<select id="ent-dep" style="width:auto">' + A.opt(depList.map(function (d) { return { value: d.id, text: d.name }; }), entryFilter.departmentId, 'All departments') + '</select>' +
         '<div class="row"><input type="date" id="ent-from" style="width:auto" value="' + esc(entryFilter.from) + '" aria-label="From"><input type="date" id="ent-to" style="width:auto" value="' + esc(entryFilter.to) + '" aria-label="To"></div>' +
-        '<span class="spacer"></span><button type="button" class="btn primary" id="ent-new">＋ Add entry</button></div>' +
+        '<span class="spacer"></span><button type="button" class="btn" id="ent-import">Import</button><button type="button" class="btn primary" id="ent-new">＋ Add entry</button></div>' +
         '<div class="chips" id="ent-types"><button type="button" class="chip' + (!entryFilter.type ? ' on' : '') + '" data-t="">All</button>' + R.TYPES.map(function (t) { return '<button type="button" class="chip' + (entryFilter.type === t ? ' on' : '') + '" data-t="' + t + '">' + esc(TL[t]) + '</button>'; }).join('') + '</div>' +
         '<div id="ent-sum" class="muted" style="margin:10px 0"></div><div class="table-wrap" id="ent-table"></div></div>';
       function load() {
@@ -437,6 +514,20 @@
       $('#ent-to', view).onchange = function (e) { entryFilter.to = e.target.value; load(); };
       $$('[data-t]', view).forEach(function (b) { b.onclick = function () { entryFilter.type = b.dataset.t; $$('[data-t]', view).forEach(function (x) { x.classList.toggle('on', x === b); }); load(); }; });
       $('#ent-new', view).onclick = function () { editEntry(null, depList, load); };
+      $('#ent-import', view).onclick = function () {
+        var srv = api.mode === 'remote' ? ((A.serverBase && A.serverBase()) || location.origin + '/') : '';
+        A.modal({ title: 'Import from a spreadsheet or billing software', wide: true, submitText: 'Import',
+          body: '<p class="muted">Export a CSV from Excel, Google Sheets, Tally or your billing software. Columns: <b>date, department, type, amount</b>, and optionally half (morning/evening), time, method (Cash/UPI/Card), category, fixed/variable, vendor, bill no, note. ' +
+            'Type can be sales, collection, walk-ins, expense, purchase, received, wastage or misc. New department names are added automatically.</p>' +
+            '<input type="file" accept=".csv,text/csv" id="imp-file"><label class="field">…or paste CSV<textarea name="text" id="imp-text" placeholder="date,department,type,amount,method&#10;2026-11-05,Restaurant,sales,32000,&#10;2026-11-05,Restaurant,collection,20000,Cash&#10;2026-11-05,Restaurant,walk-ins,96,"></textarea></label>' +
+            (srv ? '<details><summary>Connect your billing software directly</summary><p class="muted">Your software can send the same rows as JSON to <span class="mono">' + esc(srv) + 'api/entries</span> (POST, header <span class="mono">x-app-pin</span> with your PIN). Each night\'s figures then appear here automatically.</p></details>' : ''),
+          onOpen: function (f) { $('#imp-file', f).onchange = function (e) { var file = e.target.files[0]; if (file) A.readFile(file).then(function (t) { $('#imp-text', f).value = t; }); }; },
+          onSubmit: function (d) {
+            var rows = A.Engine.parseCSV(d.text);
+            if (!rows.length) throw new Error('No rows found. The first line must be the column names.');
+            return api.call('importEntries', rows).then(function (r) { A.toast('Imported ' + r.imported + (r.skippedCount ? ', skipped ' + r.skippedCount + ' (' + r.skipped[0] + ')' : '')); load(); });
+          } });
+      };
       return load();
     });
   };
@@ -503,6 +594,7 @@
             '<div class="panel"><div class="panel-head"><h2>Things to check</h2><span class="muted">' + res.flags.filter(function (f) { return f.severity === 'high'; }).length + ' urgent · ' + res.flags.length + ' total</span></div>' + flagList(res.flags) + '</div>' +
             kpiPanel(res.kpis) +
             (res.byDay.length > 1 ? '<div class="panel"><div class="panel-head"><h2>Sales and costs by day</h2></div>' + pairChart(res.byDay) + '</div>' : '') +
+            halvesTable(res.halves) + dayTable(res.byDay) +
             '<div class="panel"><div class="panel-head"><h2>Departments</h2></div>' + deptTable(res.byDepartment) + '</div>' +
             '<div class="grid grid-2">' +
             section('Fixed vs variable costs', res.byCategory.filter(function (c) { return c.type === 'expense' || c.type === 'misc'; }), [['Category', function (c) { return esc(c.name); }], ['Type', function (c) { return '<span class="pill ' + (c.costType === 'fixed' ? 'ink' : '') + '">' + esc(c.costType || 'variable') + '</span>'; }], ['Amount', function (c) { return money(c.amount); }, 1]]) +

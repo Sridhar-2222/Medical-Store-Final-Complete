@@ -9,7 +9,7 @@ const path = require('path');
 const { createServer } = require('../server/server');
 
 (async () => {
-  const www = path.join(__dirname, '../android-app/www');
+  const www = process.env.WWW || path.join(__dirname, '../android-app/www');   // WWW=<unzipped APK assets/public> tests the real APK files
   const stat = http.createServer((req, res) => {
     const f = path.join(www, decodeURIComponent(req.url.split('?')[0]).replace(/^\/$/, '/index.html'));
     if (!f.startsWith(www) || !fs.existsSync(f)) { res.writeHead(404); return res.end(); }
@@ -21,7 +21,7 @@ const { createServer } = require('../server/server');
   const srv = await createServer({ env: { DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'bz-nat-')), APP_PIN: '2468', SUPABASE_URL: '' } });
   await new Promise((r) => srv.server.listen(0, r));
   const serverUrl = 'http://localhost:' + srv.server.address().port;
-  srv.engine.setup({ industry: 'pharmacy', businessName: 'Server Pharmacy', loadSamples: true });
+  srv.engine.setup({ industry: 'pharmacy', businessName: 'Server Pharmacy', mode: 'both', loadSamples: true });
 
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
@@ -49,7 +49,7 @@ const { createServer } = require('../server/server');
   await page.fill('#cn-url', serverUrl);
   await page.fill('#cn-pin', '2468');
   await page.click('.modal button[type=submit]');
-  await page.waitForSelector('#sync-pill', { timeout: 15000 });
+  await page.waitForSelector('#sync-pill', { timeout: 15000 }).catch(async (e) => { console.log('Connect step failed; page shows:', page.url(), (await page.textContent('body')).slice(0, 300)); throw e; });
   await page.waitForFunction(() => /Online/.test(document.getElementById('sync-pill').textContent));
   const brand = await page.textContent('.brand-name');
   if (brand !== 'Server Pharmacy') throw new Error('not showing server data: ' + brand);
@@ -81,6 +81,22 @@ const { createServer } = require('../server/server');
   await page.click('#dt-backup');
   await page.waitForFunction(() => window.__native.includes('Share.share'));
   step('backup handed to Android share sheet: ' + (await page.evaluate(() => window.__native.join(', '))));
+
+  // 6. Read a bill photo on the phone, offline, using the files packaged in the app
+  const bill = path.join(os.tmpdir(), 'bz-native-bill.png');
+  const bp = await browser.newPage({ viewport: { width: 640, height: 420 } });
+  await bp.setContent('<body style="margin:0;background:#fff;font:26px/1.5 monospace;color:#111;padding:30px"><div>CITY MEDICAL AGENCIES</div><div>Bill No: 5521 Date: 04/11/2026</div><div>Paracetamol 10 strip 18.00 180.00</div><div>ORS 20 pcs 19.00 380.00</div><div>Grand Total 560.00</div></body>');
+  await bp.screenshot({ path: bill }); await bp.close();
+  blockServer = true;   // no internet
+  await page.goto(appUrl + '#scan');
+  await page.waitForSelector('#sc-engine');
+  await page.selectOption('#sc-engine', 'device');
+  await page.setInputFiles('#sc-file', bill);
+  await page.waitForSelector('#sc-form', { timeout: 120000 });
+  const lines = await page.$$eval('#en-items input[data-k="name"]', (els) => els.map((e) => e.value));
+  if (lines.length < 2) throw new Error('bill not read on device: ' + JSON.stringify(lines));
+  step('bill photo read on the phone with no internet: ' + JSON.stringify(lines));
+  blockServer = false;
 
   await page.screenshot({ path: process.env.SHOT || path.join(os.tmpdir(), 'native.png') });
   await browser.close(); stat.close(); srv.server.close(); srv.server.closeAllConnections();

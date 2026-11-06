@@ -26,6 +26,11 @@ const { createServer } = require('../server/server');
     <div>Tomato 10 kg 48.00 480.00</div><div>Onion 8 kg 35.00 280.00</div><div>Paneer 2 kg 380.00 760.00</div><br>
     <div>Grand Total 1520.00</div></body>`);
   await bp.screenshot({ path: billPng });
+  const reportPng = path.join(dir, 'report.png');
+  await bp.setContent(`<body style="margin:0;background:#fff;font:26px/1.5 'DejaVu Sans Mono',monospace;color:#111;padding:30px">
+    <div>SPICE ROUTE</div><div>DAY END REPORT 05/11/2026</div><br><div>No. of Bills 84</div><div>Gross Sales 31250.00</div>
+    <div>Net Sales 30800.00</div><div>Cash 12400.00</div><div>UPI 14900.00</div><div>Card 3500.00</div></body>`);
+  await bp.screenshot({ path: reportPng });
   await bp.close();
 
   await page.goto(url);
@@ -41,6 +46,7 @@ const { createServer } = require('../server/server');
   // daily numbers
   await page.goto(url + '#daily');
   await page.waitForSelector('#dy-0-sale');
+  await page.fill('#dy-0-walkin', '64');
   await page.fill('#dy-0-sale', '20000');
   await page.fill('#dy-0-cash', '15000');
   await page.fill('#dy-0-upi', '3000');
@@ -81,9 +87,51 @@ const { createServer } = require('../server/server');
   if (!srv.engine.list('receipts').total) throw new Error('receipt not saved');
   step('bill saved with ' + srv.engine.list('entries', { search: 'FRESH' }).rows[0].items.length + ' item lines');
 
+  // day-end sales report printout
+  await page.goto(url + '#scan');
+  await page.selectOption('#sc-type', 'salesreport');
+  await page.selectOption('#sc-engine', 'device');
+  await page.setInputFiles('#sc-file', reportPng);
+  await page.waitForSelector('#sr-form', { timeout: 120000 });
+  const rep = { sale: await page.inputValue('#sr-sale'), cash: await page.inputValue('#sr-cash'), upi: await page.inputValue('#sr-upi'), walk: await page.inputValue('#sr-walk') };
+  step('day-end report read on device: ' + JSON.stringify(rep));
+  if (rep.sale !== '30800' || rep.walk !== '84') throw new Error('report not read');
+  await page.click('#sr-form button[type=submit]');
+  await page.waitForSelector('text=Sales report saved');
+
+  // stock
+  await page.goto(url + '#stock');
+  await page.waitForSelector('[data-item]');
+  const stockFlags = await page.$$eval('.flag b', (els) => els.map((e) => e.textContent));
+  step('stock screen: ' + (await page.$$('[data-item]')).length + ' items; ' + (stockFlags.find((f) => /Stock short/.test(f)) || 'no shortage flag'));
+  if (!stockFlags.some((f) => /Stock short/.test(f))) throw new Error('stock shortage not shown');
+
+  // customer vault: reminders, message, record
+  await page.goto(url + '#vault');
+  await page.waitForSelector('[data-due]');
+  await page.click('[data-due]');
+  await page.waitForSelector('#ms-text');
+  const msg = await page.inputValue('#ms-text');
+  step('vault reminder message: "' + msg.slice(0, 90) + '…"');
+  if (!/Spice Route/.test(msg)) throw new Error('message not filled');
+  const href = await page.getAttribute('#ms-send', 'href');
+  if (!/^https:\/\/wa\.me\/91\d{10}\?text=/.test(href)) throw new Error('bad WhatsApp link ' + href);
+  await page.$eval('#ms-send', (a) => { a.removeAttribute('target'); a.addEventListener('click', (e) => e.preventDefault()); });
+  await page.click('#ms-send');
+  await page.waitForSelector('text=Saved in');
+  if (!srv.engine.list('messages').total) throw new Error('message not logged');
+  step('message logged in the customer\'s vault');
+
+  // guide
+  await page.goto(url + '#guide');
+  await page.waitForSelector('#gd-ind');
+  await page.selectOption('#gd-ind', 'auto');
+  await page.waitForFunction(() => /Next service due/i.test(document.getElementById('view').textContent));
+  step('guide switches business type (garage shows service reminders)');
+
   // phone layout
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const r of ['overview', 'daily', 'scan', 'review', 'entries', 'departments', 'prefs', 'data']) {
+  for (const r of ['overview', 'daily', 'scan', 'stock', 'vault', 'review', 'entries', 'departments', 'guide', 'prefs', 'data']) {
     await page.goto(url + '#' + r);
     await page.waitForTimeout(400);
     const ow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -164,3 +164,38 @@ test('customer vault: records, reminders, messages and a private link', () => {
   assert.equal(e.vaultByToken('nope'), null);
   assert.equal(e.vaultSummary()[0].records, 2);
 });
+
+test('walk-ins, average spend, day-on-day change and stock used', () => {
+  const e = fresh('restaurant');
+  const y = Review.addDays(TODAY, -1);
+  e.saveEntry({ type: 'sale', date: y, amount: 10000 }); e.saveEntry({ type: 'walkin', date: y, amount: 40 });
+  e.saveEntry({ type: 'sale', date: TODAY, amount: 12000, half: 'first' }); e.saveEntry({ type: 'walkin', date: TODAY, amount: 30, half: 'first' });
+  e.saveEntry({ type: 'purchase', date: y, items: [{ name: 'Rice', qty: 10, unit: 'kg', rate: 50 }] });
+  e.saveEntry({ type: 'supply', date: TODAY, items: [{ name: 'Rice', qty: 6, unit: 'kg' }] });
+  const r = e.reviewInsights({ from: y, to: TODAY });
+  assert.equal(r.totals.walkin, 70);
+  assert.equal(r.ratios.avgSpend, 314.29);
+  const d = r.byDay.find((x) => x.date === TODAY);
+  assert.equal(d.change, 20); assert.equal(d.avgSpend, 400);
+  assert.equal(r.totals.used, 300, '6 kg at the purchase rate of 50');
+  assert.equal(r.halves.first.walkin, 30);
+  assert.throws(() => e.saveEntry({ type: 'walkin', amount: 0 }), /number of walk-ins/);
+});
+
+test('importing rows from a spreadsheet or billing software', () => {
+  const e = fresh('hotel');
+  const res = e.importEntries([
+    { Date: TODAY, Department: 'Restaurant', Type: 'Sales', Amount: '32,000' },
+    { Date: TODAY, Department: 'Restaurant', Type: 'collection', Amount: 20000, Method: 'Cash' },
+    { Date: TODAY, Department: 'Rooftop Cafe', Type: 'walk-ins', Amount: 96, Half: 'Evening' },
+    { Date: TODAY, Type: 'unknown', Amount: 5 }
+  ]);
+  assert.equal(res.imported, 3); assert.equal(res.skippedCount, 1);
+  assert.ok(e.list('departments').rows.some((d) => d.name === 'Rooftop Cafe'));
+  assert.equal(e.list('entries', { type: 'walkin' }).rows[0].half, 'second');
+});
+
+test('day-end sales printout text is read', () => {
+  const r = OCR.parseSalesReport('Z REPORT 05/11/2026\nNo. of Bills 84\nGross Sales 31,250.00\nNet Sales 30,800.00\nCash 12,400\nUPI 14,900\nCard 3,500\nZomato 1,200');
+  assert.deepEqual(r, { date: '2026-11-05', sale: 30800, cash: 12400, upi: 14900, card: 3500, other: 1200, walkins: 84 });
+});
