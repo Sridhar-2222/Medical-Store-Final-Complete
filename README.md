@@ -43,3 +43,11 @@ hardware, bakery, garage, gym, services.
 - Open generic-app/dist/bizcore-standalone.html to use it with no server at all
 - Or run: node generic-app/server/server.js  (shared by all devices)
 Full guide: generic-app/README.md
+
+-----------------------------------------------------
+LATEST: BizCore Review (review-app/) - rebuilt from scratch
+-----------------------------------------------------
+Phone app for owners: sales vs spending, cash in hand, walk-ins, stock and a
+Customer Vault titled with the business name. Works offline on the phone;
+optional office system. Android app: generic-app/android-app/release/BizCore.apk
+Guide: review-app/README.md

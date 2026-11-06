@@ -1,14 +1,14 @@
-// Copies the web app (../public + ../core) into www/ for the Android build.
+// Copies the app into www/ for the Android build.
+// Source: review-app/build/www (BizCore Review 2.x). Run "node scripts/build.js" in review-app first;
+// this script does it for you.
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const root = path.join(__dirname, '..');
+const { execFileSync } = require('child_process');
+const reviewApp = path.join(__dirname, '..', '..', 'review-app');
+execFileSync(process.execPath, [path.join(reviewApp, 'scripts', 'build.js')], { stdio: 'inherit' });
+const src = path.join(reviewApp, 'build', 'www');
 const www = path.join(__dirname, 'www');
 fs.rmSync(www, { recursive: true, force: true });
-fs.mkdirSync(path.join(www, 'core'), { recursive: true });
-for (const f of fs.readdirSync(path.join(root, 'public'))) {
-  if (f === 'head.html') continue;
-  fs.cpSync(path.join(root, 'public', f), path.join(www, f), { recursive: true });
-}
-for (const f of fs.readdirSync(path.join(root, 'core'))) fs.copyFileSync(path.join(root, 'core', f), path.join(www, 'core', f));
-console.log('www/ ready');
+fs.cpSync(src, www, { recursive: true });
+console.log('www/ ready (BizCore Review)');
