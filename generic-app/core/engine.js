@@ -125,6 +125,7 @@
     var now = opts.now || function () { return new Date(); };
     var changes = null;
     var setupHooks = [];
+    var migratedToReview = false;
 
     if (!store.data || typeof store.data !== 'object') store.data = emptyDb();
     var db = store.data;
@@ -134,8 +135,17 @@
       if (!d.meta) d.meta = { version: VERSION, seq: {} };
       if (!d.meta.seq) d.meta.seq = {};
       COLLECTIONS.forEach(function (c) { if (!Array.isArray(d[c])) d[c] = []; });
+      // Data saved by version 1.0 (billing app) has no appMode. BizCore is now a review
+      // platform, so those installs switch to the review screens; billing screens can be
+      // turned back on in Settings → Screens.
+      var upgradeToReview = !!(d.settings && d.settings.setupDone && !('appMode' in d.settings));
       var defs = defaultSettings(d.settings && d.settings.industry);
       d.settings = Object.assign(defs, d.settings || {});
+      if (upgradeToReview) {
+        d.settings.appMode = 'review';
+        d.settings.modules = Industries.REVIEW_DEFAULT_MODULES.slice();
+        migratedToReview = true;
+      }
     }
 
     function today() { return localDate(now()); }
@@ -902,6 +912,10 @@
       Review.install({ api: api, db: function () { return db; }, tx: tx, touch: touch, drop: drop, find: find, mustFind: mustFind,
         fail: fail, uid: uid, newId: newId, today: today, stamp: stamp, settings: settings, preset: preset, clone: clone,
         onSetup: function (fn) { setupHooks.push(fn); } });
+    }
+    if (migratedToReview) {
+      // add the suggested departments and save the upgrade right away
+      tx(function () { setupHooks.forEach(function (fn) { fn(); }); changes.full = true; });
     }
 
     api.methods = function () { return Object.keys(api).filter(function (k) { return !/Inner$/.test(k); }); };

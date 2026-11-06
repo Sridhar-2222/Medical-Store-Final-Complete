@@ -199,3 +199,23 @@ test('day-end sales printout text is read', () => {
   const r = OCR.parseSalesReport('Z REPORT 05/11/2026\nNo. of Bills 84\nGross Sales 31,250.00\nNet Sales 30,800.00\nCash 12,400\nUPI 14,900\nCard 3,500\nZomato 1,200');
   assert.deepEqual(r, { date: '2026-11-05', sale: 30800, cash: 12400, upi: 14900, card: 3500, other: 1200, walkins: 84 });
 });
+
+test('an install saved by the old billing version switches to the review screens', () => {
+  const old = createEngine({ data: null, commit() {} });
+  old.setup({ industry: 'pharmacy', businessName: 'Old Shop', mode: 'pos' });
+  const data = old.exportAll();
+  delete data.settings.appMode;                    // version 1.0 did not have this setting
+  data.departments = [];
+  const store = { data, commits: 0, commit() { this.commits++; } };
+  const e = createEngine(store);
+  const info = e.info();
+  assert.equal(info.settings.appMode, 'review');
+  assert.ok(info.settings.modules.includes('overview') && !info.settings.modules.includes('pos'));
+  assert.ok(e.list('departments').total >= 3, 'suggested departments added');
+  assert.ok(store.commits >= 1, 'upgrade saved');
+  // a new-version billing install is left alone
+  const pos = createEngine({ data: null, commit() {} });
+  pos.setup({ industry: 'grocery', mode: 'pos' });
+  const again = createEngine({ data: pos.exportAll(), commit() {} });
+  assert.ok(again.info().settings.modules.includes('pos'));
+});
