@@ -1,0 +1,125 @@
+# BizCore — one business app for many industries
+
+BizCore is a generic version of the Medical Store app. The same code runs a pharmacy,
+grocery store, restaurant, salon, clinic, clothing shop, electronics/mobile shop,
+hardware store, bakery, garage, gym or a service business. You pick the business
+type on first start and the app changes its words, fields, tax rate and screens.
+
+It has **no npm dependencies** and **does not need Supabase, GitHub or any internet
+service to work**. Those are optional extras that the app falls back from when they
+are down.
+
+---
+
+## What every business gets (the shared core)
+
+| Area | Features |
+|---|---|
+| Billing / POS | Search or barcode-scan, quantity & price edit, bill discount, tax (inclusive or exclusive), cash/UPI/card/credit, part payments, change due, printable receipt, WhatsApp share, cancel bill (stock restored) |
+| Items / catalogue | Products and services, categories, units, cost & selling price, per-item tax, barcode/SKU, reorder level, batch & expiry (where relevant), industry-specific extra fields, stock history, stock adjustment, CSV import/export |
+| Purchases | Supplier bills add stock, create new items automatically, free qty, batch/expiry, partial payment, **read a bill photo with AI** (Gemini, optional) |
+| Customers & suppliers | Contact details, balance (dues), payments auto-settle the oldest bills, full ledger, WhatsApp payment reminder, loyalty points |
+| Appointments / bookings | For salons, clinics, garages, gyms, restaurants (table reservations), services: book, remind on WhatsApp, "done & bill" in one click |
+| Expenses | Categories per industry, monthly totals |
+| Staff | Roles, salary, commission %, "served by" on bills, commission report |
+| Dashboard | Today / month sales & profit, collections, money to collect / pay, stock value, low stock, expiring, upcoming bookings, 14-day chart |
+| Reports | Any date range: sales, gross & net profit, tax summary by rate, top items, categories, payment methods, staff, expenses |
+| Data | Full backup & restore (JSON), CSV export of everything, sample data, erase |
+| Security | Optional PIN for the shared server |
+
+### What changes per industry
+
+| Industry | Words used | Extra item fields | Turned on |
+|---|---|---|---|
+| Pharmacy | Medicine, Patient, Bill | manufacturer, composition, HSN, rack, Rx required | batch, expiry |
+| Grocery | Product, Customer, Bill | brand, MRP, shelf | expiry |
+| Restaurant / café | Menu item, Guest, Order | veg/non-veg, kitchen section, spicy | table reservations, services |
+| Salon / spa | Service, Client | for (gender) | appointments |
+| Clinic / dental / lab | Service, Patient | department | appointments, batch, expiry |
+| Clothing / footwear | Product | size, colour, brand, material | — |
+| Electronics / mobile | Product | brand, model, serial/IMEI, warranty | repair bookings |
+| Hardware | Item | brand, size/spec | — |
+| Bakery / sweets | Product | eggless | batch, expiry |
+| Auto service / garage | Part / Service, Job invoice | part no., fits vehicle | service bookings |
+| Gym / fitness | Plan, Member, Receipt | validity days | sessions |
+| Professional / home services | Service, Client | — | bookings (no purchases/suppliers) |
+| General | Item | — | everything |
+
+Add a new industry by adding one block to `core/industries.js`. No other code changes.
+
+---
+
+## Three ways to run it (pick any)
+
+### 1. Single file, no server (works offline)
+Open `dist/bizcore-standalone.html` in any browser (double-click it, copy it to a
+USB stick, or put it on GitHub Pages / Netlify / any static host). Data is saved in
+that browser. Use **Backup & data → Download full backup** to move it.
+
+### 2. Shared server (all phones and computers see the same data)
+Needs Node 18 or newer. Nothing to install:
+
+```bash
+cd generic-app
+node server/server.js        # open http://localhost:8080
+```
+
+Data is saved in `generic-app/data/bizcore-db.json` with a daily backup copy kept for
+14 days in `data/backups/`.
+
+**Render.com:** New → Blueprint → pick this repo (uses `generic-app/render.yaml`), or a
+Web Service with root dir `generic-app` and start command `node server/server.js`.
+**Docker:** `docker build -t bizcore generic-app && docker run -p 8080:8080 -v bizcore:/data bizcore`.
+
+### 3. Shared server + Supabase copy (optional)
+1. In Supabase → SQL Editor run `supabase-schema.sql`.
+2. Set `SUPABASE_URL` and `SUPABASE_KEY` (service role key, server only).
+
+Every change is saved to the local file first, then copied to Supabase in the background.
+If Supabase is unreachable the changes wait in a queue on disk and are retried
+automatically, so billing never stops. If the server starts with an empty disk (common
+on free hosts), it restores itself from Supabase.
+
+### Optional settings (environment variables or a `.env` file)
+| Variable | Purpose |
+|---|---|
+| `PORT` | default 8080 |
+| `DATA_DIR` | where data lives (default `./data`) |
+| `APP_PIN` | ask for a PIN before showing any data |
+| `SUPABASE_URL`, `SUPABASE_KEY` | Supabase copy (see above) |
+| `GOOGLE_API_KEY` | AI bill reading on the Purchases screen |
+| `GEMINI_MODEL` | default `gemini-2.5-flash` |
+
+In single-file mode the Gemini key can be entered in **Settings → AI bill reading**;
+it is kept on that device only and is not included in backups.
+
+---
+
+## How it is built
+
+```
+core/industries.js   industry presets (words, fields, modules, samples)
+core/engine.js       all business rules: billing, stock, dues, purchases, reports, CSV, backup
+core/ai.js           optional Gemini bill reader (plain fetch, no SDK)
+server/server.js     zero-dependency HTTP server: static files + /api/rpc + CSV/backup + AI
+server/storage.js    JSON file store (atomic writes, daily backups) + Supabase mirror with retry queue
+public/              the web app (vanilla JS, works on phones, light & dark mode)
+scripts/             builds the single-file version into dist/
+test/                unit, server and browser tests
+```
+
+The same `engine.js` runs in the browser (single-file mode) and on the server
+(shared mode), so both behave identically. Every action is all-or-nothing: if a bill
+fails (for example, not enough stock) nothing is half-saved.
+
+## Tests
+
+```bash
+npm test            # engine + server (incl. Supabase outage & recovery)
+npm run test:e2e    # browser test with Playwright, if installed
+npm run build       # rebuild dist/ after changing public/ or core/
+```
+
+## Keyboard
+`F2` opens a new bill from anywhere. On the bill screen, scan a barcode or type a
+name and press Enter to add it.

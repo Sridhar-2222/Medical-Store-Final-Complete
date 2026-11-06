@@ -1,0 +1,15 @@
+{
+  "name": "bizcore",
+  "version": "1.0.0",
+  "description": "BizCore - one billing, stock, customer, dues, bookings and reports app for any small business (pharmacy, grocery, restaurant, salon, clinic, retail, garage, gym and more).",
+  "main": "server/server.js",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server/server.js",
+    "build": "node scripts/build-standalone.js",
+    "test": "node --test test/engine.test.js test/server.test.js",
+    "test:e2e": "node test/e2e.js"
+  },
+  "dependencies": {}
+}
