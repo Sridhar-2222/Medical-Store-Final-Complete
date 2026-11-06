@@ -557,6 +557,12 @@
       });
     }
 
+    function normFiles(list) {
+      return (Array.isArray(list) ? list : []).filter(function (f) { return f && /^[A-Za-z0-9_-]{4,64}$/.test(f.id || ''); }).slice(0, 20).map(function (f) {
+        return { id: f.id, name: str(f.name).slice(0, 120), type: str(f.type).slice(0, 60), size: Math.max(0, Math.round(num(f.size))), text: str(f.text).slice(0, 3000) };
+      });
+    }
+    ctx.normFiles = normFiles;
     function normEntry(input, existing) {
       var e = existing || { id: ctx.newId(input.id), createdAt: ctx.stamp() };
       var type = str(input.type);
@@ -579,7 +585,14 @@
       else if (!(e.amount > 0)) fail('Enter an amount more than zero');
       e.method = type === 'collection' ? (str(input.method) || 'Cash') : str(input.method);
       e.category = str(input.category);
-      e.costType = type === 'expense' || type === 'misc' ? (input.costType === 'fixed' || input.costType === 'variable' ? input.costType : costTypeFor(e.category)) : '';
+      // Expense kind: fixed (spread per day), variable, maintenance or sudden
+      e.kind = type === 'expense' ? (['fixed', 'variable', 'maintenance', 'sudden'].indexOf(input.kind) >= 0 ? input.kind : (input.costType === 'fixed' ? 'fixed' : costTypeFor(str(input.category)) === 'fixed' ? 'fixed' : 'variable')) : type === 'misc' ? 'sudden' : '';
+      e.costType = type === 'expense' || type === 'misc' ? (e.kind === 'fixed' ? 'fixed' : 'variable') : '';
+      e.month = e.kind === 'fixed' ? (/^\d{4}-\d{2}$/.test(input.month || '') ? input.month : e.date.slice(0, 7)) : '';
+      if (e.kind === 'sudden' && type === 'expense' && !str(input.note) && !str(input.category)) fail('Write the reason for this sudden expense');
+      e.storeCategory = type === 'purchase' ? str(input.storeCategory) : '';
+      e.staffId = str(input.staffId); e.staffName = str(input.staffName);
+      e.files = normFiles(input.files);
       e.vendor = str(input.vendor); e.billNo = str(input.billNo); e.note = str(input.note);
       e.source = str(input.source) || e.source || 'manual';
       if (input.receiptId) e.receiptId = str(input.receiptId);
@@ -587,6 +600,7 @@
       return e;
     }
 
+    ctx.normEntry = normEntry;
     api.saveDepartment = function (input) {
       return ctx.tx(function () {
         input = input || {};
@@ -644,6 +658,7 @@
           if (e.source !== 'sheet' || e.date !== date || e.departmentId !== d.id || (e.half || '') !== half) return;
           var f = e.type === 'collection' ? Object.keys(METHOD_OF).filter(function (k) { return METHOD_OF[k] === e.method; })[0] || 'otherCollection' : e.type === 'cash' ? 'cashInHand' : e.type;
           row[f] = r2((row[f] || 0) + e.amount);
+          if (e.type === 'sale' && e.files && e.files.length) row.files = e.files;
         });
         return row;
       });
@@ -662,7 +677,7 @@
             SHEET_FIELDS[type].forEach(function (f) {
               var v = r2(num(row[f]));
               if (type === 'cash' ? (row[f] === '' || row[f] === undefined || row[f] === null) : !(v > 0)) return;
-              var e = normEntry({ id: row.ids && row.ids[f], type: type, date: input.date, half: half, departmentId: dep.id, amount: v,
+              var e = normEntry({ id: row.ids && row.ids[f], type: type, date: input.date, half: half, departmentId: dep.id, amount: v, files: type === 'sale' ? row.files : undefined,
                 method: METHOD_OF[f] || (SPENDING.indexOf(type) >= 0 ? 'Cash' : ''), category: type === 'expense' ? 'Daily expenses' : '', costType: 'variable', source: 'sheet' });
               db().entries.push(e); ctx.touch('entries', e); count++;
             });
@@ -854,7 +869,7 @@
       input = input || {};
       return ctx.tx(function () {
         var c = customer(input.customerId);
-        if (!str(input.title) && !str(input.details)) fail('Add a title or details');
+        if (!str(input.title) && !str(input.details) && !(input.files && input.files.length)) fail('Add a title, details or a photo / file');
         var r = input.id ? ctx.find('vaultRecords', input.id) : null;
         if (!r) { r = { id: ctx.newId(input.id), createdAt: ctx.stamp() }; db().vaultRecords.push(r); }
         r.customerId = c.id; r.customerName = c.name;
@@ -863,6 +878,7 @@
         r.dueDate = isDate(input.dueDate) ? input.dueDate : '';
         r.amount = num(input.amount) ? r2(num(input.amount)) : 0;
         r.done = !!input.done;
+        r.files = normFiles(input.files);
         r.updatedAt = ctx.stamp();
         ctx.touch('vaultRecords', r);
         return ctx.clone(r);
@@ -904,9 +920,11 @@
       if (!c) return null;
       var v = vaultOf(c);
       var sset = s();
-      return { shop: { name: sset.businessName, title: sset.vaultTitle || sset.businessName, phone: sset.phone, address: sset.address, industry: ctx.preset().name },
+      return { shop: { name: sset.businessName, title: sset.vaultTitle || sset.businessName, phone: sset.phone, address: sset.address, industry: ctx.preset().name, video: sset.customerVideo || '' },
         customer: { name: c.name, points: c.points || 0, balance: c.balance || 0 },
-        records: v.records.map(function (r) { return { kind: r.kind, title: r.title, details: r.details, date: r.date, dueDate: r.dueDate, amount: r.amount }; }),
+        records: v.records.map(function (r) { return { kind: r.kind, title: r.title, details: r.details, date: r.date, dueDate: r.dueDate, amount: r.amount, files: (r.files || []).map(function (f) { return { id: f.id, name: f.name, type: f.type }; }) }; }),
+        files: (c.files || []).map(function (f) { return { id: f.id, name: f.name, type: f.type }; }), discountPct: c.discountPct || 0,
+        offers: api.offersFor ? api.offersFor(c.id).map(function (o) { return { title: o.title, validTill: o.validTill }; }) : [],
         bills: v.bills, messages: v.messages.map(function (m) { return { date: m.date, text: m.text }; }), labels: ctx.preset().review.vault.records };
     };
     // Who needs a message: due dates from today-30 to today+days, plus who has not been contacted
@@ -917,7 +935,7 @@
       return db().vaultRecords.filter(function (r) { return r.dueDate && !r.done && r.dueDate >= since && r.dueDate <= until; }).map(function (r) {
         var c = ctx.find('customers', r.customerId) || {};
         var last = db().messages.filter(function (m) { return m.recordId === r.id; }).sort(function (a, b) { return b.at.localeCompare(a.at); })[0];
-        return { record: ctx.clone(r), customer: { id: c.id, name: c.name, phone: c.phone }, dueLabel: (labels[r.kind] || {}).dueLabel || 'Due', overdue: r.dueDate < t, remindedOn: last ? last.date : '' };
+        return { record: ctx.clone(r), customer: { id: c.id, name: c.name, phone: c.phone, discountPct: c.discountPct || 0 }, dueLabel: (labels[r.kind] || {}).dueLabel || 'Due', overdue: r.dueDate < t, remindedOn: last ? last.date : '' };
       }).sort(function (a, b) { return a.record.dueDate.localeCompare(b.record.dueDate); });
     };
     api.vaultSummary = function () {

@@ -16,17 +16,17 @@ const { serve } = require('./serve');
   await page.click('[data-k="hotel"]');
   await page.fill('#su-name', 'Sai Ram Hotel');
   await page.click('#su-go');
-  await page.waitForSelector('.tabs');
+  await page.waitForSelector('.hdr');
   const shots = process.env.SHOT_DIR;
-  for (const r of ['home', 'add', 'add-day', 'add-bill', 'add-report', 'add-expense', 'add-count', 'add-issue', 'add-wastage', 'import', 'entries', 'reports', 'customers', 'more', 'stock', 'departments', 'guide', 'settings', 'backup']) {
+  for (const r of ['home', 'accounts', 'sales', 'sale-add', 'purchases', 'purchase-add', 'salaries', 'fixed', 'exp-variable', 'exp-maintenance', 'exp-sudden', 'exp-add', 'cash', 'pl', 'store', 'staff', 'staff-edit', 'customers', 'cust-list', 'cust-add', 'discounts', 'offers', 'offer-add', 'reminders', 'messages', 'reports', 'alerts', 'rep-sales', 'rep-spend', 'spot', 'ask-ai', 'setup', 'setup-biz', 'setup-depts', 'setup-store', 'setup-fixed', 'setup-video', 'setup-ai', 'sync', 'backup', 'guide']) {
     await page.goto(url + '#' + r);
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(r === 'home' ? 2600 : 250);
     const bad = await page.$('#view .banner');
     const banner = bad ? await bad.textContent() : '';
     const ow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     console.log((ow > 0 ? 'OVERFLOW ' + ow + 'px ' : 'ok ') + r + (banner ? ' · ' + banner.slice(0, 80) : ''));
     if (ow > 0) errors.push(r + ' scrolls sideways');
-    if (shots && ['home', 'add', 'reports', 'customers', 'add-day'].includes(r)) await page.screenshot({ path: path.join(shots, 'v2-' + r + '.png') });
+    if (shots && ['home', 'accounts', 'pl', 'customers', 'purchase-add', 'setup'].includes(r)) await page.screenshot({ path: path.join(shots, 'v2-' + r + '.png') });
   }
   await b.close(); srv.close();
   if (errors.length) { console.error('ERRORS:\n' + errors.join('\n')); process.exit(1); }

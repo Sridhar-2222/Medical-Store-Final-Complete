@@ -126,5 +126,43 @@
       });
   }
 
-  return { buildPrompt: buildPrompt, parseResponse: parseResponse, readBill: readBill, receiptPrompt: receiptPrompt, parseReceipt: parseReceipt, readReceipt: readReceipt, readSalesReport: readSalesReport };
+  // ---- Provider-neutral calls: Google Gemini or OpenAI (owner chooses in Business setup) ----
+  // opts: { provider: 'gemini'|'openai', apiKey, model, base64?, mimeType? }
+  function callAI(fetchFn, opts, prompt, wantJson) {
+    if (!opts.apiKey) return Promise.reject(new Error('Add an AI key in Business setup → AI'));
+    if (opts.provider === 'openai') {
+      var content = [{ type: 'text', text: prompt }];
+      if (opts.base64) content.push({ type: 'image_url', image_url: { url: 'data:' + (opts.mimeType || 'image/jpeg') + ';base64,' + opts.base64 } });
+      var body = { model: opts.model || 'gpt-4o-mini', temperature: 0, messages: [{ role: 'user', content: content }] };
+      if (wantJson) body.response_format = { type: 'json_object' };
+      return fetchFn('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + opts.apiKey }, body: JSON.stringify(body) })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error((j.error && j.error.message) || 'OpenAI request failed'); return ((j.choices || [])[0] || {}).message ? j.choices[0].message.content || '' : ''; }); });
+    }
+    var parts = [{ text: prompt }];
+    if (opts.base64) parts.push({ inline_data: { mime_type: opts.mimeType || 'image/jpeg', data: opts.base64 } });
+    var gbody = { contents: [{ parts: parts }], generationConfig: wantJson ? { temperature: 0, responseMimeType: 'application/json' } : { temperature: 0.3 } };
+    return fetchFn('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(opts.model || 'gemini-2.5-flash') + ':generateContent',
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': opts.apiKey }, body: JSON.stringify(gbody) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini request failed'); return ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(function (p) { return p.text || ''; }).join(''); }); });
+  }
+  function readBillAny(fetchFn, opts) {
+    return callAI(fetchFn, opts, receiptPrompt(opts), true).then(function (t) { var o = parseReceipt(t); if (!o) throw new Error('The AI could not read this bill'); return o; });
+  }
+  function readReportAny(fetchFn, opts) {
+    var prompt = 'This is a day-end sales report printed by the billing machine of a "' + (opts.presetName || 'business') + '". Return ONLY JSON: ' +
+      '{"date":"YYYY-MM-DD","sale":0,"cash":0,"upi":0,"card":0,"other":0,"walkins":0}. sale = net sales; cash/upi/card/other = money received by each mode; walkins = number of bills, covers or customers. 0 when not printed.';
+    return callAI(fetchFn, opts, prompt, true).then(function (t) {
+      var o; try { o = JSON.parse(String(t).replace(/```json|```/g, '').slice(String(t).indexOf('{'))); } catch (e) { throw new Error('The AI could not read this report'); }
+      var n = function (v) { return Number(v) || 0; };
+      return { date: /^\d{4}-\d{2}-\d{2}$/.test(o.date || '') ? o.date : '', sale: n(o.sale), cash: n(o.cash), upi: n(o.upi), card: n(o.card), other: n(o.other), walkins: Math.round(n(o.walkins)) };
+    });
+  }
+  // Ask a question about the business; facts = plain-text summary of the numbers
+  function askBusiness(fetchFn, opts, facts, question) {
+    var prompt = 'You advise the owner of a small ' + (opts.presetName || 'business') + ' in India. Use only these figures:\n' + facts +
+      '\n\nQuestion: ' + question + '\nAnswer in simple language, at most 8 short bullet points, with concrete actions. Do not invent numbers.';
+    return callAI(fetchFn, opts, prompt, false);
+  }
+
+  return { callAI: callAI, readBillAny: readBillAny, readReportAny: readReportAny, askBusiness: askBusiness, buildPrompt: buildPrompt, parseResponse: parseResponse, readBill: readBill, receiptPrompt: receiptPrompt, parseReceipt: parseReceipt, readReceipt: readReceipt, readSalesReport: readSalesReport };
 });

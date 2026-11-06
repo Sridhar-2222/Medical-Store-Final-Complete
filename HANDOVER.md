@@ -37,6 +37,13 @@ Working modes: **phone only** (default, fully offline) or **connected to an offi
 
 ## 2. Current state (all done, tested, pushed)
 
+**Latest: BizCore 3.0** (Android 3.0.0). Main page with 6 headers (Accounts, Customers, Store,
+Reports, Staff, Business setup) joined by the fingertip line; header → feature → entry pages;
+photo + file on every entry page; four expense kinds; P&L with fixed costs spread per day;
+customer discount and special offers; YouTube videos for owner and customers; OpenAI or Gemini.
+See review-app/README.md and PLAN-v3.md.
+
+
 | Part | Where | State |
 |---|---|---|
 | **BizCore Review 2.0** (current app, rebuilt from scratch) | `review-app/` | Done |

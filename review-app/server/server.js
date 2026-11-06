@@ -32,11 +32,15 @@ const esc = (v) => String(v === undefined || v === null ? '' : v).replace(/[&<>"
 function same(a, b) { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); }
 
 // The page a customer opens from the link the business sends: titled with the business's own name.
-function vaultPage(v) {
+function vaultPage(v, token) {
+  const fileLinks = (files) => (files || []).length ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' + files.map((f) => /^image\//.test(f.type)
+    ? '<a href="/v/' + token + '/f/' + esc(f.id) + '"><img src="/v/' + token + '/f/' + esc(f.id) + '" alt="' + esc(f.name) + '" style="width:90px;height:90px;object-fit:cover;border-radius:8px"></a>'
+    : '<a href="/v/' + token + '/f/' + esc(f.id) + '">' + esc(f.name) + '</a>').join('') + '</div>' : '';
   const label = {}; (v.labels || []).forEach((l) => { label[l.key] = l; });
   const t = new Date().toISOString().slice(0, 10);
   const recs = v.records.map((r) => '<li><b>' + esc((label[r.kind] || {}).label || r.kind) + (r.title ? ': ' + esc(r.title) : '') + '</b><span>' + esc(r.date) +
-    (r.dueDate ? ' · ' + esc((label[r.kind] || {}).dueLabel || 'Due') + ' <b class="' + (r.dueDate < t ? 'over' : '') + '">' + esc(r.dueDate) + '</b>' : '') + '</span>' + (r.details ? '<p>' + esc(r.details) + '</p>' : '') + '</li>').join('');
+    (r.dueDate ? ' · ' + esc((label[r.kind] || {}).dueLabel || 'Due') + ' <b class="' + (r.dueDate < t ? 'over' : '') + '">' + esc(r.dueDate) + '</b>' : '') + '</span>' + (r.details ? '<p>' + esc(r.details) + '</p>' : '') + fileLinks(r.files) + '</li>').join('');
+  const video = (v.shop.video || '').match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{11})/);
   const msgs = v.messages.slice(0, 40).map((m) => '<li><span>' + esc(m.date) + '</span><p>' + esc(m.text) + '</p></li>').join('');
   const title = v.shop.title || v.shop.name;
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">' +
@@ -47,6 +51,10 @@ function vaultPage(v) {
     'li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}li span{display:block;color:var(--mut);font-size:13px}li p{margin:4px 0 0}.over{color:var(--bad)}.mut{color:var(--mut)}</style></head><body><main>' +
     '<header><p>Your vault at</p><h1>' + esc(title) + '</h1><p>' + esc([v.shop.address, v.shop.phone].filter(Boolean).join(' · ')) + '</p></header>' +
     '<p style="margin-top:14px">Hello ' + esc(v.customer.name) + '. ' + esc(title) + ' keeps your records and messages here.</p>' +
+    (v.discountPct ? '<p><b>Your customer discount: ' + esc(v.discountPct) + '%</b></p>' : '') +
+    (v.offers || []).map((o) => '<p style="background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:10px 14px"><b>' + esc(o.title) + '</b>' + (o.validTill ? ' · valid till ' + esc(o.validTill) : '') + '</p>').join('') +
+    (video ? '<h2>Video from ' + esc(title) + '</h2><div style="position:relative;padding-top:56.25%"><iframe style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:12px" src="https://www.youtube-nocookie.com/embed/' + video[1] + '" title="Video" allowfullscreen></iframe></div>' : '') +
+    (fileLinks(v.files) ? '<h2>Your documents</h2>' + fileLinks(v.files) : '') +
     '<h2>Your records</h2>' + (recs ? '<ul>' + recs + '</ul>' : '<p class="mut">Nothing saved yet.</p>') +
     '<h2>Messages from ' + esc(title) + '</h2>' + (msgs ? '<ul>' + msgs + '</ul>' : '<p class="mut">No messages yet.</p>') +
     (v.shop.phone ? '<p style="margin-top:22px"><a style="color:var(--ink)" href="https://wa.me/' + esc(String(v.shop.phone).replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')) + '">Message ' + esc(title) + ' on WhatsApp</a></p>' : '') +
@@ -56,6 +64,7 @@ function vaultPage(v) {
 async function createServer(options = {}) {
   const env = Object.assign({}, process.env, options.env || {});
   const dataDir = path.resolve(env.DATA_DIR || path.join(ROOT, 'data'));
+  const filesDir = path.join(dataDir, 'files');
   const www = path.resolve(env.WWW_DIR || path.join(ROOT, 'build', 'www'));
   let mirror = null;
   if (env.SUPABASE_URL && env.SUPABASE_KEY) mirror = new SupabaseMirror({ url: env.SUPABASE_URL, key: env.SUPABASE_KEY, secret: env.SUPABASE_SECRET, log, fetchFn: options.fetch || globalThis.fetch });
@@ -98,6 +107,20 @@ async function createServer(options = {}) {
           try { return send(res, 200, { ok: true, result: app[method].apply(null, Array.isArray(args) ? args : []) }); }
           catch (e) { if (!e.userError) log('Error in ' + method + ': ' + e.stack); return send(res, e.userError ? 400 : 500, { ok: false, error: e.message }); }
         }
+        // photos and files from phones
+        if (p === '/api/files' && req.method === 'POST') {
+          const f = JSON.parse((await body(req)) || '{}');
+          if (!/^[A-Za-z0-9_-]{4,64}$/.test(f.id || '') || typeof f.data !== 'string' || !/^data:/.test(f.data)) return send(res, 400, { ok: false, error: 'Bad file' });
+          fs.mkdirSync(filesDir, { recursive: true });
+          fs.writeFileSync(path.join(filesDir, f.id + '.json'), JSON.stringify({ id: f.id, name: String(f.name || '').slice(0, 120), type: String(f.type || '').slice(0, 60), size: f.size || 0, data: f.data, createdAt: f.createdAt || new Date().toISOString() }));
+          return send(res, 200, { ok: true });
+        }
+        const fm = p.match(/^\/api\/files\/([A-Za-z0-9_-]{4,64})$/);
+        if (fm && req.method === 'GET') {
+          const fp = path.join(filesDir, fm[1] + '.json');
+          if (!fs.existsSync(fp)) return send(res, 404, { ok: false, error: 'Not found' });
+          return send(res, 200, { ok: true, result: JSON.parse(fs.readFileSync(fp, 'utf8')) });
+        }
         if (p === '/api/entries' && req.method === 'POST') {
           const b = JSON.parse((await body(req)) || '[]');
           try { return send(res, 200, { ok: true, result: app.importEntries(Array.isArray(b) ? b : b.entries) }); }
@@ -105,12 +128,24 @@ async function createServer(options = {}) {
         }
         return send(res, 404, { ok: false, error: 'Not found' });
       }
+      // a photo or file from a customer's own vault
+      const vf = p.match(/^\/v\/([a-z0-9]{16,40})\/f\/([A-Za-z0-9_-]{4,64})$/);
+      if (vf) {
+        const v = app.vaultByToken(vf[1]);
+        const ids = v ? [].concat(v.files || [], ...v.records.map((r) => r.files || [])).map((f) => f.id) : [];
+        const fp = path.join(filesDir, vf[2] + '.json');
+        if (!v || ids.indexOf(vf[2]) < 0 || !fs.existsSync(fp)) return send(res, 404, 'Not found');
+        const f = JSON.parse(fs.readFileSync(fp, 'utf8')), m = f.data.match(/^data:([^;]+);base64,(.*)$/);
+        if (!m) return send(res, 404, 'Not found');
+        res.writeHead(200, { 'Content-Type': m[1], 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline; filename="' + f.name.replace(/"/g, '') + '"' });
+        return res.end(Buffer.from(m[2], 'base64'));
+      }
       const vm = p.match(/^\/v\/([a-z0-9]{16,40})$/);
       if (vm) {
         const v = app.vaultByToken(vm[1]);
         if (!v) return send(res, 404, 'This vault link is not valid any more. Ask the business for a new one.');
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'no-referrer' });
-        return res.end(vaultPage(v));
+        return res.end(vaultPage(v, vm[1]));
       }
       const rel = p === '/' ? 'index.html' : p.replace(/^\/+/, '');
       const file = path.join(www, rel);

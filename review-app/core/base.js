@@ -6,13 +6,13 @@
  * UMD: works in the browser and in Node (tests).
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./industries'), require('./review'));
-  else root.BizBase = factory(root.BizIndustries, root.BizReview);
-})(typeof self !== 'undefined' ? self : this, function (Industries, Review) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./industries'), require('./review'), require('./accounts'));
+  else root.BizBase = factory(root.BizIndustries, root.BizReview, root.BizAccounts);
+})(typeof self !== 'undefined' ? self : this, function (Industries, Review, Accounts) {
   'use strict';
 
-  var VERSION = 2;
-  var COLLECTIONS = ['departments', 'entries', 'receipts', 'customers', 'vaultRecords', 'messages'];
+  var VERSION = 3;
+  var COLLECTIONS = ['departments', 'entries', 'receipts', 'customers', 'vaultRecords', 'messages', 'staff', 'offers'];
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function newId(v) { return typeof v === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(v) ? v : uid(); }
@@ -60,18 +60,20 @@
     return [cols.join(',')].concat(rows.map(function (r) { return cols.map(function (c) { return esc(r[c]); }).join(','); })).join('\n');
   }
   var CSV_COLS = {
-    entries: ['date', 'half', 'time', 'departmentName', 'type', 'amount', 'method', 'category', 'costType', 'vendor', 'billNo', 'note', 'source'],
-    customers: ['name', 'phone', 'email', 'notes', 'lastContact'],
+    entries: ['date', 'half', 'time', 'departmentName', 'type', 'kind', 'month', 'storeCategory', 'amount', 'method', 'category', 'vendor', 'billNo', 'staffName', 'note', 'source'],
+    customers: ['name', 'phone', 'email', 'discountPct', 'notes', 'lastContact'],
     vaultRecords: ['date', 'customerName', 'kind', 'title', 'dueDate', 'amount', 'details', 'done'],
     messages: ['date', 'customerName', 'template', 'text'],
     departments: ['name', 'kind', 'active'],
-    receipts: ['date', 'vendor', 'billNo', 'type', 'total', 'engine']
+    receipts: ['date', 'vendor', 'billNo', 'type', 'total', 'engine'],
+    staff: ['name', 'role', 'phone', 'salary', 'active'],
+    offers: ['title', 'pct', 'amount', 'validTill', 'reason', 'createdAt']
   };
 
   function createApp(store, opts) {
     opts = opts || {};
     var now = opts.now || function () { return new Date(); };
-    if (!store.data || typeof store.data !== 'object' || store.data.meta && store.data.meta.version !== VERSION && !store.data.entries) store.data = emptyDb();
+    if (!store.data || typeof store.data !== 'object' || !Array.isArray(store.data.entries)) store.data = emptyDb();
     var db = store.data;
     function fix(d) {
       if (!d.meta) d.meta = { version: VERSION };
@@ -82,6 +84,8 @@
     fix(db);
 
     var changes = null, setupHooks = [];
+    var ctxRef = {};
+    function ctxNormFiles(f) { return ctxRef.normFiles ? ctxRef.normFiles(f) : []; }
     function today() { return localDate(now()); }
     function stamp() { return now().toISOString(); }
     function settings() { return db.settings; }
@@ -177,6 +181,8 @@
         var c = input.id ? find('customers', input.id) : null;
         if (!c) { c = { id: newId(input.id), createdAt: stamp(), balance: 0, points: 0 }; db.customers.push(c); }
         ['name', 'phone', 'email', 'notes'].forEach(function (k) { c[k] = str(input[k]); });
+        c.discountPct = Math.max(0, Math.min(100, num(input.discountPct)));
+        if (input.files) c.files = ctxNormFiles(input.files);
         c.updatedAt = stamp();
         touch('customers', c);
         return clone(c);
@@ -204,7 +210,8 @@
 
     // Changes recorded while offline, applied once each.
     var SYNCABLE = ['setup', 'saveSettings', 'saveCustomer', 'removeCustomer', 'saveDepartment', 'removeDepartment', 'saveEntry', 'removeEntry',
-      'saveDailySheet', 'saveReceipt', 'loadReviewSamples', 'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries'];
+      'saveDailySheet', 'saveReceipt', 'loadReviewSamples', 'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries',
+      'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer'];
     api.applyOps = function (ops) {
       var out = [];
       (ops || []).forEach(function (op) {
@@ -219,9 +226,11 @@
       return out;
     };
 
-    Review.install({ api: api, db: function () { return db; }, tx: tx, touch: touch, drop: drop, find: find, mustFind: mustFind, fail: fail,
+    Object.assign(ctxRef, { api: api, db: function () { return db; }, tx: tx, touch: touch, drop: drop, find: find, mustFind: mustFind, fail: fail,
       uid: uid, newId: newId, today: today, stamp: stamp, settings: settings, preset: preset, clone: clone,
       onSetup: function (fn) { setupHooks.push(fn); } });
+    Review.install(ctxRef);
+    if (Accounts) Accounts.install(ctxRef);
 
     api.methods = function () { return Object.keys(api).filter(function (k) { return !/Inner$/.test(k); }); };
     return api;

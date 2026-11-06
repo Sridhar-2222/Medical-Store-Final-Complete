@@ -1,4 +1,4 @@
-// Main phone flows incl. reading photos on the device: node test/phone-e2e.js
+// Main phone flows of BizCore 3.0, including reading photos on the device: node test/phone-e2e.js
 'use strict';
 const { chromium } = require('playwright');
 const path = require('path'), os = require('os'), fs = require('fs');
@@ -10,68 +10,77 @@ const { serve } = require('./serve');
   const b = await chromium.launch();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bzp-'));
   const mk = async (name, html) => { const p = await b.newPage({ viewport: { width: 700, height: 600 } }); await p.setContent('<body style="margin:0;background:#fff;font:26px/1.5 monospace;color:#111;padding:30px">' + html + '</body>'); const f = path.join(dir, name); await p.screenshot({ path: f }); await p.close(); return f; };
-  const bill = await mk('bill.png', '<div>FRESH FARMS SUPPLIERS</div><div>Bill No: 9081 Date: 05/11/2026</div><br><div>Tomato 10 kg 48.00 480.00</div><div>Onion 8 kg 35.00 280.00</div><div>Paneer 2 kg 380.00 760.00</div><br><div>Grand Total 1520.00</div>');
-  const report = await mk('report.png', '<div>SPICE ROUTE</div><div>DAY END REPORT 05/11/2026</div><br><div>No. of Bills 84</div><div>Net Sales 30800.00</div><div>Cash 12400.00</div><div>UPI 14900.00</div><div>Card 3500.00</div>');
+  const bill = await mk('bill.png', '<div>FRESH FARMS SUPPLIERS</div><div>Bill No: 9081 Date: 05/11/2026</div><br><div>Tomato 10 kg 48.00 480.00</div><div>Onion 8 kg 35.00 280.00</div><br><div>Grand Total 760.00</div>');
+  const report = await mk('report.png', '<div>SAFFRON</div><div>DAY END REPORT 05/11/2026</div><br><div>No. of Bills 84</div><div>Net Sales 30800.00</div><div>Cash 12400.00</div><div>UPI 14900.00</div><div>Card 3500.00</div>');
   const page = await b.newPage({ viewport: { width: 390, height: 844 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('dialog', (d) => d.dismiss());
   const step = (m) => console.log('·', m);
-  const shots = process.env.SHOT_DIR;
+  const go = async (r) => { await page.goto(url + '#' + r); await page.waitForTimeout(150); };
+  const saved = async (t) => { await page.waitForSelector('.toast:has-text("' + (t || 'Saved') + '")', { timeout: 30000 }); };
 
   await page.goto(url);
-  await page.click('[data-k="restaurant"]'); await page.fill('#su-name', 'Spice Route'); await page.click('#su-go');
-  await page.waitForSelector('.tabs');
-  step('home: ' + (await page.$$eval('.stat .l', (e) => e.map((x) => x.textContent).slice(0, 6).join(', '))));
+  await page.click('[data-k="restaurant"]'); await page.fill('#su-name', 'Saffron'); await page.click('#su-go');
+  await page.waitForSelector('.hdr');
+  const heads = await page.$$eval('.hdr b', (e) => e.map((x) => x.textContent));
+  step('main page headers: ' + heads.join(' · '));
+  if (heads.length !== 6 || !(await page.$('svg.finger'))) throw new Error('main page headers / fingertip line missing');
 
-  // today's numbers with cash in hand
-  await page.goto(url + '#add-day'); await page.waitForSelector('#d-sale');
-  await page.fill('#d-walkin', '60'); await page.fill('#d-sale', '20000'); await page.fill('#d-cash', '15000'); await page.fill('#d-upi', '3000');
-  const gap = await page.textContent('#d-gap');
-  await page.click('#d-save'); await page.waitForSelector('text=Saved');
-  step('today\'s numbers saved · shows "' + gap.trim() + '"');
+  // Accounts → Sales → Dine-in: read the day-end report photo
+  await page.click('.hdr[href="#accounts"]'); await page.waitForSelector('.feat');
+  await page.click('.feat[href="#sales"]'); await page.waitForSelector('[data-dep]');
+  await page.click('[data-dep]'); await page.waitForSelector('#sa-sale');
+  await page.setInputFiles('#sa-att input[accept="image/*"][capture]', report);
+  await page.waitForFunction(() => document.getElementById('sa-sale').value === '30800', null, { timeout: 120000 });
+  step('sales: day-end report photo filled sales ' + await page.inputValue('#sa-sale') + ', cash ' + await page.inputValue('#sa-cash') + ', bills ' + await page.inputValue('#sa-walkin'));
+  await page.click('#sa-save'); await saved('Sales saved');
 
-  // bill photo read on the device
-  await page.goto(url + '#add-bill'); await page.waitForSelector('#b-file', { state: 'attached' });
-  await page.setInputFiles('#b-file', bill);
-  await page.waitForSelector('#bf-save', { timeout: 120000 });
-  const lines = await page.$$eval('#bf-lines input[data-k="name"]', (e) => e.map((x) => x.value));
-  const total = await page.inputValue('#bf-total');
-  const checks = (await page.textContent('#bf-checks')).replace(/\s+/g, ' ');
-  step('bill read on the phone: ' + JSON.stringify(lines) + ' total ' + total + ' · ' + checks.slice(0, 70));
-  if (lines.length < 3 || total !== '1520' || !/Tomato.*above the usual price/.test(checks)) throw new Error('bill not read / not checked');
-  if (shots) await page.screenshot({ path: path.join(shots, 'v2-bill.png'), fullPage: true });
-  await page.click('#bf-save'); await page.waitForSelector('text=Saved');
+  // Accounts → Purchases: bill photo read inside the page
+  await go('purchase-add'); await page.waitForSelector('#pa-vendor');
+  await page.setInputFiles('#pa-att input[capture]', bill);
+  await page.waitForFunction(() => document.getElementById('pa-total').value === '760', null, { timeout: 120000 });
+  step('purchase bill photo read: ' + await page.inputValue('#pa-vendor') + ', total ' + await page.inputValue('#pa-total'));
+  if ((await page.$$('#pa-att .thumb')).length !== 1) throw new Error('photo not kept with the bill');
+  await page.selectOption('#pa-cat', 'Vegetables'); await page.click('#pa-save'); await saved('Bill saved');
 
-  // day-end report photo
-  await page.goto(url + '#add-report'); await page.waitForSelector('#r-file', { state: 'attached' });
-  await page.setInputFiles('#r-file', report);
-  await page.waitForSelector('#rf-save', { timeout: 120000 });
-  const rep = [await page.inputValue('#rf-sale'), await page.inputValue('#rf-cash'), await page.inputValue('#rf-upi'), await page.inputValue('#rf-walk')];
-  step('day-end report read: sales ' + rep[0] + ', cash ' + rep[1] + ', UPI ' + rep[2] + ', bills ' + rep[3]);
-  if (rep[0] !== '30800' || rep[3] !== '84') throw new Error('report not read');
-  await page.click('#rf-save'); await page.waitForSelector('text=Saved');
+  // Expenses: sudden needs a reason
+  await go('exp-sudden'); await page.click('#ex-add'); await page.waitForSelector('#xa-amt');
+  await page.fill('#xa-amt', '2500'); await page.click('#xa-save');
+  await page.waitForSelector('.toast.err');
+  await page.fill('#xa-note', 'Mixer motor burnt'); await page.click('#xa-save'); await saved();
+  step('sudden expense: refused without a reason, saved with one');
 
-  // reports: random 3 days, evenings, weekly view
-  await page.goto(url + '#reports'); await page.waitForSelector('#rp-period');
-  await page.click('details summary.muted'); await page.click('#rp-mode [data-v="random"]');
-  await page.waitForSelector('#rp-half'); await page.click('#rp-half [data-v="second"]');
-  await page.waitForSelector('#rp-scale'); await page.click('#rp-scale [data-v="week"]');
-  const scope = await page.textContent('.card p.muted.small');
-  step('spot check: ' + scope.trim().slice(0, 90));
-  if (shots) await page.screenshot({ path: path.join(shots, 'v2-reports-spot.png') });
+  // Staff + salaries
+  await go('staff-edit'); await page.fill('#se-name', 'Ravi'); await page.fill('#se-sal', '18000'); await page.click('#se-save'); await saved();
+  await go('salaries'); await page.waitForSelector('[data-sal]'); await page.click('#sy-save'); await saved('Salaries saved');
+  step('staff added, salary for the month saved');
 
-  // customer vault message
-  await page.goto(url + '#customers'); await page.waitForSelector('[data-due]');
-  await page.click('[data-due]'); await page.waitForSelector('#ms-text');
+  // Profit & Loss
+  await go('pl'); await page.click('#pl-p [data-v="today"]'); await page.waitForSelector('.stmt');
+  const stmt = (await page.textContent('.stmt')).replace(/\s+/g, ' ');
+  step('P&L today: ' + stmt.slice(0, 200));
+  if (!/Gross profit/.test(stmt) || !/a month ÷ 30 days/.test(stmt) || !/Net profit/.test(stmt)) throw new Error('P&L statement incomplete');
+
+  // Customers → add, vault photo, special discount
+  await go('cust-add'); await page.fill('#ca-name', 'Meena'); await page.fill('#ca-phone', '9000000001'); await page.fill('#ca-disc', '5'); await page.click('#ca-save');
+  await page.waitForSelector('#v-att'); await saved('Vault created');
+  await page.setInputFiles('#v-att input:not([capture])', bill);
+  await page.waitForSelector('#v-att .thumb', { timeout: 60000 });
+  await page.click('#v-files'); await saved('Saved in');
+  const vtext = await page.textContent('#view');
+  step('vault: ' + (/Customer discount 5%/.test(vtext) ? 'discount shown, ' : '') + (await page.$$('#v-att .thumb')).length + ' photo saved');
+  await go('offer-add'); await page.fill('#of-title', 'Diwali 10% off'); await page.fill('#of-pct', '10'); await page.click('#of-save'); await saved();
+  await page.waitForSelector('[data-send]'); await page.click('[data-send]'); await page.waitForSelector('#ms-text');
   const msg = await page.inputValue('#ms-text');
-  step('vault reminder: "' + msg.slice(0, 70) + '…"');
-  await page.evaluate(() => { window.open = () => null; });
-  await page.click('#ms-send'); await page.waitForSelector('text=Saved in');
+  if (!/Diwali 10% off/.test(msg)) throw new Error('offer message missing');
+  step('special discount message: "' + msg.slice(0, 80) + '…"');
 
-  // stock count
-  await page.goto(url + '#add-count'); await page.waitForSelector('[data-c]');
-  await page.fill('[data-c="0"]', '1'); await page.click('#c-save'); await page.waitForSelector('text=Stock count saved');
-  step('stock count saved; stock screen: ' + (await page.$$eval('#view .list .item', (e) => e.length)) + ' items');
+  // Videos + reports pages render
+  await go('setup-video'); await page.fill('#vd-cus', 'https://youtu.be/dQw4w9WgXcQ'); await page.click('#vd-save'); await saved();
+  await go('alerts'); await page.waitForSelector('#al-share');
+  await go('home'); await page.waitForSelector('.hdr');
+  if (process.env.SHOT_DIR) await page.screenshot({ path: path.join(process.env.SHOT_DIR, 'v3-home-after.png') });
 
   await b.close(); st.close();
   if (errors.length) { console.error(errors.join('\n')); process.exit(1); }

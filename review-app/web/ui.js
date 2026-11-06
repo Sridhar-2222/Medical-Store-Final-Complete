@@ -22,14 +22,16 @@
   // pulled back so all phones match. Offline, changes simply wait in the queue.
   var SKEY = 'bizreview-server', PKEY = 'bizreview-pin', OKEY = 'bizreview-outbox', XKEY = 'bizreview-sync-problems';
   var WRITES = ['setup', 'saveSettings', 'saveCustomer', 'removeCustomer', 'saveDepartment', 'removeDepartment', 'saveEntry', 'removeEntry', 'saveDailySheet',
-    'saveReceipt', 'loadReviewSamples', 'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries'];
+    'saveReceipt', 'loadReviewSamples', 'saveVaultRecord', 'removeVaultRecord', 'logMessage', 'ensureVaultToken', 'importEntries',
+    'saveStaff', 'removeStaff', 'saveSalaries', 'saveOffer', 'removeOffer'];
   function rid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
   var sync = { url: lsGet(SKEY) || '', outbox: (function () { try { return JSON.parse(lsGet(OKEY) || '[]'); } catch (e) { return []; } })(), status: 'idle', last: '', running: false, timer: null };
   function base() { var u = sync.url.trim(); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'http://' + u; return u.replace(/\/+$/, '') + '/'; }
   function prepare(method, args) {
     args = JSON.parse(JSON.stringify(args));
     var a0 = args[0];
-    if (['saveEntry', 'saveDepartment', 'saveVaultRecord', 'logMessage', 'saveCustomer'].indexOf(method) >= 0 && a0 && !a0.id) a0.id = rid();
+    if (['saveEntry', 'saveDepartment', 'saveVaultRecord', 'logMessage', 'saveCustomer', 'saveStaff', 'saveOffer'].indexOf(method) >= 0 && a0 && !a0.id) a0.id = rid();
+    if (method === 'saveSalaries' && a0) (a0.rows || []).forEach(function (r) { if (!r.id) r.id = rid(); });
     if (method === 'saveReceipt' && a0) { if (!a0.id) a0.id = rid(); a0.entry = a0.entry || {}; if (!a0.entry.id) a0.entry.id = rid(); }
     if (method === 'saveDailySheet' && a0) (a0.rows || []).forEach(function (r) { r.ids = r.ids || {}; ['walkin', 'cashInHand', 'deposit', 'sale', 'cash', 'upi', 'card', 'otherCollection', 'expense', 'purchase', 'received', 'wastage', 'misc'].forEach(function (f) { if (!r.ids[f]) r.ids[f] = rid(); }); });
     if (method === 'ensureVaultToken' && !args[1]) args[1] = (rid() + rid()).replace(/[^a-z0-9]/g, '').slice(0, 24);
@@ -80,6 +82,7 @@
       lsSet(OKEY, JSON.stringify(sync.outbox));
     }) : Promise.resolve();
     return step.then(function () { return sync.outbox.length ? null : pull(); })
+      .then(function () { return window.App && App.files ? App.files.uploadPending() : 0; })
       .then(function () { sync.status = 'ok'; sync.last = new Date().toLocaleTimeString(); },
         function (e) { sync.status = e.auth ? 'pin' : e.net ? 'offline' : 'error'; sync.error = e.message; })
       .then(function () { sync.running = false; if (sync.outbox.length && sync.status === 'ok') runSync(); });
@@ -204,7 +207,6 @@
   function openLink(url) { if (native) location.href = url; else window.open(url, '_blank', 'noopener'); }
 
   // ---------------------------------------------------------------- navigation
-  var TABS = [['home', '⌂', 'Home'], ['add', '+', 'Add'], ['reports', '▤', 'Reports'], ['customers', '☺', 'Customers'], ['more', '≡', 'More']];
   var screens = {};
   var state = {};          // values passed between pages (e.g. which customer is open)
   function screen(name, def) { screens[name] = def; }
@@ -217,14 +219,12 @@
     if (!s.setupDone) return renderSetup();
     var name = route(), def = screens[name] || screens.home;
     if (!screens[name]) name = 'home';
-    var tab = def.tab || name;
     document.title = (typeof def.title === 'function' ? def.title() : def.title) + ' · ' + s.businessName;
     $('#app').innerHTML =
-      '<header class="top" id="top">' + (def.back ? '<button class="back" id="back" aria-label="Back">‹</button>' : '') +
-      '<div class="titles"><h1>' + esc(typeof def.title === 'function' ? def.title() : def.title) + '</h1><div class="sub">' + esc(def.back ? s.businessName : s.businessName + ' · ' + niceDate(today(), true)) + '</div></div><div id="top-act"></div></header>' +
-      '<main id="view"></main>' +
-      '<nav class="tabs" aria-label="Main">' + TABS.map(function (t) { return '<a href="#' + t[0] + '" class="' + (t[0] === tab ? 'on ' : '') + (t[0] === 'add' ? 'add' : '') + '"><span class="ic" aria-hidden="true">' + t[1] + '</span>' + t[2] + '</a>'; }).join('') + '</nav>' +
-      '';
+      '<header class="top" id="top">' + (def.back ? '<button class="back" id="back" aria-label="Back">‹</button>' : '<span class="logo" aria-hidden="true">B</span>') +
+      '<div class="titles"><h1>' + esc(typeof def.title === 'function' ? def.title() : def.title) + '</h1><div class="sub">' + esc(def.crumb ? (typeof def.crumb === 'function' ? def.crumb() : def.crumb) : s.businessName + ' · ' + niceDate(today(), true)) + '</div></div>' +
+      (name !== 'home' ? '<a class="back" href="#home" aria-label="Main page">⌂</a>' : '<a class="back" href="#setup" aria-label="Business setup">⚙</a>') + '</header>' +
+      '<main id="view"></main>';
     if (def.back) $('#back').onclick = function () { if (history.length > 1 && state.fromNav) history.back(); else go(def.back); };
     window.scrollTo(0, 0);
     try { def.render($('#view'), state); }
@@ -235,7 +235,7 @@
   // ---------------------------------------------------------------- first-time setup
   function renderSetup() {
     var chosen = info().settings.industry || 'restaurant';
-    $('#app').innerHTML = '<main style="padding-top:calc(24px + env(safe-area-inset-top,0px))"><div class="stack"><h1>Welcome to BizCore Review</h1>' +
+    $('#app').innerHTML = '<main style="padding-top:calc(24px + env(safe-area-inset-top,0px))"><div class="stack"><h1>Welcome to BizCore</h1>' +
       '<p class="muted">Enter your sales, walk-ins, expenses and purchase bills; BizCore shows you where your business stands and what needs checking. Pick your business type.</p></div>' +
       '<div class="types" id="types">' + Industries.list().map(function (i) {
         return '<button type="button" data-k="' + i.key + '"' + (i.key === chosen ? ' class="on"' : '') + '><span class="e" aria-hidden="true">' + i.icon + '</span><b>' + esc(i.name) + '</b></button>';

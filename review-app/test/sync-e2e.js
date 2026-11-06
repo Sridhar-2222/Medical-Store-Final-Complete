@@ -24,7 +24,7 @@ const { createServer } = require('../server/server');
   // Phone A: used on its own first, then connected (sends its data to the empty office)
   const A = await phone();
   await A.p.goto(app); await A.p.click('[data-k="restaurant"]'); await A.p.fill('#su-name', 'Spice Route'); await A.p.click('#su-go');
-  await A.p.waitForSelector('.tabs');
+  await A.p.waitForSelector('.hdr');
   const phoneEntries = await A.p.evaluate(() => App.api.info().counts.entries);
   await connect(A.p);
   if (srv.app.list('entries').total !== phoneEntries) throw new Error('office did not receive the phone data');
@@ -33,15 +33,15 @@ const { createServer } = require('../server/server');
   // Phone B: connects and gets the office data
   const B = await phone();
   await B.p.goto(app); await B.p.click('[data-k="restaurant"]'); await B.p.fill('#su-name', 'temp'); await B.p.uncheck('#su-sample'); await B.p.click('#su-go');
-  await B.p.waitForSelector('.tabs');
+  await B.p.waitForSelector('.hdr');
   await connect(B.p);
   const nameB = await B.p.evaluate(() => App.S().businessName);
   if (nameB !== 'Spice Route') throw new Error('phone B did not get office data: ' + nameB);
   step('phone B connected and now shows "' + nameB + '"');
 
   // A enters an expense; B sees it after syncing
-  await A.p.goto(app + '#add-expense'); await A.p.waitForSelector('#e-amt');
-  await A.p.fill('#e-amt', '777'); await A.p.fill('#e-to', 'Gas agency'); await A.p.click('#e-save');
+  await A.p.goto(app + '#exp-variable'); await A.p.click('#ex-add'); await A.p.waitForSelector('#xa-amt');
+  await A.p.fill('#xa-amt', '777'); await A.p.fill('#xa-to', 'Gas agency'); await A.p.click('#xa-save');
   await A.p.waitForFunction(() => App.sync.outbox.length === 0, null, { timeout: 15000 });
   await B.p.evaluate(() => App.runSync());
   const seen = await B.p.evaluate(() => App.api.list('entries', { search: 'Gas agency' }).total);
@@ -50,9 +50,9 @@ const { createServer } = require('../server/server');
 
   // A offline: entries wait, then go through
   await A.ctx.setOffline(true);
-  await A.p.goto(app + '#add-day'); await A.p.waitForSelector('#d-sale');
-  await A.p.fill('#d-walkin', '40'); await A.p.fill('#d-sale', '15000'); await A.p.fill('#d-cash', '15000'); await A.p.fill('#d-cashInHand', '9000');
-  await A.p.click('#d-save');
+  await A.p.goto(app + '#sales'); await A.p.waitForSelector('[data-dep]'); await A.p.click('[data-dep]'); await A.p.waitForSelector('#sa-sale');
+  await A.p.fill('#sa-walkin', '40'); await A.p.fill('#sa-sale', '15000'); await A.p.fill('#sa-cash', '15000');
+  await A.p.click('#sa-save');
   await A.p.waitForTimeout(2500);
   const waiting = await A.p.evaluate(() => App.sync.outbox.length);
   if (!waiting) throw new Error('nothing queued while offline');

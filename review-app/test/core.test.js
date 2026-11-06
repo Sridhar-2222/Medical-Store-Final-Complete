@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createApp, parseCSV } = require('../core/base');
+const ACC = require('../core/accounts');
 const R = require('../core/review');
 const OCR = require('../core/ocr-parse');
 const I = require('../core/industries');
@@ -58,7 +59,9 @@ test('example data: identical on two devices, and every planted problem is found
   const a = fresh('restaurant', true), b = fresh('restaurant', true);
   assert.equal(JSON.stringify(a.exportAll().entries), JSON.stringify(b.exportAll().entries));
   const t = a.reviewInsights({}).flags.map((f) => f.title).join('\n');
-  for (const re of [/Collection short/, /above usual price/, /billed .* received/, /Wastage \d+% of purchases on/, /Cash short by ₹1,500/, /Stock short/]) assert.match(t, re);
+  for (const re of [/Collection short/, /Cash short by ₹1,500/]) assert.match(t, re);
+  const al = a.alerts({}).flags.map((f) => f.title).join('\n');
+  for (const re of [/Sudden expense ₹6,500/, /Purchases this week .* above the 4-week average/, /Electricity up/]) assert.match(al, re);
 });
 
 test('price rise and short delivery on a bill photo are caught before saving', () => {
@@ -122,4 +125,63 @@ test('failed change leaves nothing half-saved; backup round trip', () => {
   a.saveEntry({ type: 'sale', amount: 100, date: TODAY });
   const bk = a.exportAll(); a.resetAll(); assert.equal(a.list('entries').total, 0);
   a.importAll(bk); assert.equal(a.list('entries').total, before + 1);
+});
+
+
+test('sales departments and store categories per business type', () => {
+  const a = fresh('restaurant');
+  assert.deepEqual(a.list('departments').rows.map((d) => d.name), ['Dine-in', 'Catering', 'Door delivery', 'Takeaway']);
+  assert.ok(a.storeCategories().includes('Vegetables'));
+  a.saveSettings({ storeCategories: ['Veg', 'Meat'] });
+  assert.deepEqual(a.storeCategories(), ['Veg', 'Meat']);
+});
+
+test('profit & loss: gross, net, and fixed costs spread per day', () => {
+  const a = fresh('restaurant');
+  const d = a.list('departments').rows[0].id;
+  a.saveSettings({ fixedCosts: [{ name: 'Rent', amount: 30000 }] });   // November has 30 days -> ₹1,000 a day
+  a.saveStaff({ name: 'Ravi', salary: 15000 });                       // -> ₹500 a day until paid
+  a.saveDailySheet({ date: TODAY, rows: [{ departmentId: d, sale: 20000, cash: 20000 }] });
+  a.saveEntry({ type: 'purchase', date: TODAY, amount: 7000, storeCategory: 'Vegetables', vendor: 'V', billNo: '1' });
+  a.saveEntry({ type: 'expense', kind: 'variable', category: 'Packing', date: TODAY, amount: 300 });
+  a.saveEntry({ type: 'expense', kind: 'maintenance', category: 'Repairs', date: TODAY, amount: 700 });
+  a.saveEntry({ type: 'expense', kind: 'sudden', category: 'Breakage', note: 'glass', date: TODAY, amount: 500 });
+  assert.throws(() => a.saveEntry({ type: 'expense', kind: 'sudden', date: TODAY, amount: 100 }), /reason/);
+  let pl = a.profitLoss({ from: TODAY, to: TODAY });
+  assert.equal(pl.gross, 13000);
+  assert.equal(pl.fixed, 1500);
+  assert.equal(pl.net, 13000 - 300 - 700 - 500 - 1500);
+  // two days -> twice the fixed share
+  pl = a.profitLoss({ from: Y, to: TODAY });
+  assert.equal(pl.fixed, 3000);
+  // an entered rent bill replaces the usual amount for that month
+  a.saveEntry({ type: 'expense', kind: 'fixed', category: 'Rent', month: '2026-11', amount: 36000 });
+  assert.equal(a.profitLoss({ from: TODAY, to: TODAY }).fixed, 1700);
+  assert.equal(ACC.daysInMonth('2026-02'), 28);
+});
+
+test('salaries per month feed fixed costs', () => {
+  const a = fresh();
+  const s1 = a.saveStaff({ name: 'Lakshmi', role: 'Cashier', salary: 12000 });
+  a.saveSalaries({ month: '2026-11', rows: [{ staffId: s1.id, amount: 13000, paidOn: '2026-11-03' }] });
+  a.saveSalaries({ month: '2026-11', rows: [{ staffId: s1.id, amount: 13500 }] });            // replaces, not adds
+  assert.equal(a.salaries('2026-11')[0].paid, 13500);
+  const mf = a.monthlyFixed('2026-11');
+  assert.equal(mf.detail.find((x) => x.name === 'Salaries').monthly, 13500);
+  assert.deepEqual(a.removeStaff(s1.id), { deactivated: true });
+});
+
+test('customer discount, special offers and files in the vault', () => {
+  const a = fresh('apparel');
+  const c = a.saveCustomer({ name: 'Priya', phone: '9000000003', discountPct: 5, files: [{ id: 'f12345', name: 'id.jpg', type: 'image/jpeg', size: 1000 }] });
+  assert.equal(c.discountPct, 5); assert.equal(c.files.length, 1);
+  a.saveOffer({ title: 'Birthday 15% off', pct: 15, validTill: R.addDays(TODAY, 5), customerIds: [c.id] });
+  a.saveOffer({ title: 'Old offer', pct: 5, validTill: R.addDays(TODAY, -1) });
+  assert.deepEqual(a.offersFor(c.id).map((o) => o.title), ['Birthday 15% off']);
+  assert.throws(() => a.saveOffer({ title: 'x' }), /discount %/);
+  const r = a.saveVaultRecord({ customerId: c.id, kind: 'size', files: [{ id: 'f99999', name: 'measure.jpg', type: 'image/jpeg' }] });
+  assert.equal(r.files[0].id, 'f99999');
+  const tok = a.ensureVaultToken(c.id, 'abcdefghijklmnopqrst');
+  const v = a.vaultByToken(tok);
+  assert.equal(v.discountPct, 5); assert.equal(v.offers.length, 1); assert.equal(v.files.length, 1); assert.equal(v.records[0].files.length, 1);
 });
