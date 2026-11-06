@@ -91,9 +91,11 @@ class FileStore {
  * Settings + counters are stored as collection '_meta', id 'db'.
  */
 class SupabaseMirror {
-  constructor({ url, key, table = 'bizcore_records', log = () => {}, fetchFn = globalThis.fetch }) {
+  constructor({ url, key, secret, table = 'bizcore_records', log = () => {}, fetchFn = globalThis.fetch }) {
     this.base = url.replace(/\/+$/, '') + '/rest/v1/' + table;
     this.headers = { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' };
+    // With the anon/publishable key, the table's row-level security only admits requests carrying this secret.
+    if (secret) this.headers['x-bizcore-secret'] = secret;
     this.log = log;
     this.fetch = fetchFn;
     this.store = null;

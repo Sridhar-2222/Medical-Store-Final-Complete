@@ -9,6 +9,7 @@
  *   DATA_DIR        where the JSON database + backups live (default ./data)
  *   APP_PIN         if set, the app asks for this PIN before showing data
  *   SUPABASE_URL    + SUPABASE_KEY  -> mirror every change to Supabase
+ *   SUPABASE_SECRET  sent as x-bizcore-secret (use with the anon key + supabase-schema.sql policy)
  *   GOOGLE_API_KEY  enables "Scan bill with AI" on purchases
  *   GEMINI_MODEL    default gemini-2.5-flash
  */
@@ -50,7 +51,7 @@ async function createServer(options = {}) {
   const dataDir = path.resolve(env.DATA_DIR || path.join(ROOT, 'data'));
   let mirror = null;
   if (env.SUPABASE_URL && env.SUPABASE_KEY) {
-    mirror = new SupabaseMirror({ url: env.SUPABASE_URL, key: env.SUPABASE_KEY, log, fetchFn: options.fetch || globalThis.fetch });
+    mirror = new SupabaseMirror({ url: env.SUPABASE_URL, key: env.SUPABASE_KEY, secret: env.SUPABASE_SECRET, log, fetchFn: options.fetch || globalThis.fetch });
   }
   const store = new FileStore(dataDir, { log, mirror });
   if (mirror) {
