@@ -4,7 +4,7 @@
   'use strict';
   var Base = window.BizBase, Industries = window.BizIndustries, R = window.BizReview, Work = window.BizWorkAreas;
   var KEY = 'bizreview-v2', AIKEY = 'bizreview-gemini-key';
-  var APP_VERSION = '3.2.2';   // keep in step with android/app/build.gradle versionName
+  var APP_VERSION = '3.3.0';   // keep in step with android/app/build.gradle versionName
   var Cap = window.Capacitor;
   var native = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
   var embedded = (function () { try { return window.top !== window.self; } catch (e) { return true; } })();
@@ -228,6 +228,10 @@
       (name !== 'home' ? '<a class="back" href="#home" aria-label="Main page">⌂</a>' : '<a class="back" href="#setup" aria-label="Master">⚙</a>') + '</header>' +
       '<main id="view"></main>';
     if (def.back) $('#back').onclick = function () { if (history.length > 1 && state.fromNav) history.back(); else go(def.back); };
+    // section colour: walk up the back links to the main-page header this page belongs to
+    var sec = name, guard = 0;
+    while (screens[sec] && screens[sec].back && screens[sec].back !== 'home' && guard++ < 8) sec = screens[sec].back;
+    document.body.dataset.sec = name === 'home' ? 'home' : sec;
     window.scrollTo(0, 0);
     try { def.render($('#view'), state); }
     catch (e) { $('#view').innerHTML = '<div class="banner">' + esc(e.message) + '</div>'; }
