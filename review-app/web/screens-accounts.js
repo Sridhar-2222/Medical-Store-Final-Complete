@@ -13,7 +13,7 @@
     return featRaw(href, ic, title, sub, fig, figCls);
   }
   function featRaw(href, ic, title, sub, fig, figCls) {
-    return '<li><a class="feat" href="#' + href + '"><span class="ic" aria-hidden="true">' + ic + '</span><span class="t"><b>' + esc(title) + '</b>' + (sub ? '<span>' + esc(sub) + '</span>' : '') + '</span>' + (fig !== undefined ? '<span class="fig ' + (figCls || '') + '">' + esc(fig) + '</span>' : '') + '</a></li>';
+    return '<li><a class="feat" href="#' + href + '"><span class="ic" aria-hidden="true">' + ic + '</span><span class="t"><b>' + esc(title) + '</b>' + '</span></a></li>'; // name only (owner, 9 Nov 2026)
   }
   function monthOf(d) { return (d || A.today()).slice(0, 7); }
   function monthName(ym) { try { return new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); } catch (e) { return ym; } }
@@ -106,7 +106,7 @@
     var fixedM = api.monthlyFixed(monthOf(t));
     var sal = api.salaries(monthOf(t)), salPaid = sal.filter(function (x) { return x.paid; }).length;
     var FX = api.kinds().featureExamples, adv = api.advanceBalances();
-    el.innerHTML = uploadBtn('ac-up', 'Upload a bill (photo / file)') + '<div class="today-strip">' + stat('This month: sales', money(month.sales)) + stat('Net profit', money(month.net), month.margin !== null ? A.pct(month.margin) + ' of sales' : '', month.net < 0 ? 'bad' : 'good') + '</div>' +
+    el.innerHTML = uploadBtn('ac-up', 'Upload a bill (photo / file)') +
       '<ul class="feats">' +
       feat('sales', '₹', 'Sales', FX.sales, money(today.sales) + ' today') +
       feat('purchases', '🧾', 'Purchases', FX.purchases + ' · bill photo', money(month.purchases) + ' this month') +
@@ -147,7 +147,7 @@
     el.innerHTML = uploadBtn('sl-up', 'Upload day-end report / bill page') + eg('sales') + '<div class="card"><div class="grid2">' + A.field('Date', A.input('sl-date', 'date', salesState.date)) + '<div></div></div></div>' +
       '<div class="section-title">Sales departments</div><ul class="feats">' + deps().map(function (d) {
         var v = tot(sheet, d.id) + tot(first, d.id) + tot(second, d.id);
-        return '<li><a class="feat" href="#sale-add" data-dep="' + d.id + '"><span class="ic">' + esc(d.name.charAt(0).toUpperCase()) + '</span><span class="t"><b>' + esc(d.name) + '</b><span>' + (v ? 'Entered' : 'Tap to enter sales') + '</span></span><span class="fig">' + money(v) + '</span></a></li>';
+        return '<li><a class="feat" href="#sale-add" data-dep="' + d.id + '"><span class="ic">' + esc(d.name.charAt(0).toUpperCase()) + '</span><span class="t"><b>' + esc(d.name) + (v ? ' ✓' : '') + '</b></span></a></li>';
       }).join('') + '</ul>' + A.receiptsButton('sales') + '<a class="btn ghost" href="#setup-depts">Rename or add departments</a>';
     A.bindReceipts(el);
     $('#sl-date', el).onchange = function (e) { salesState.date = e.target.value || A.today(); A.render(); };
@@ -380,10 +380,10 @@
   A.screen('store', { title: 'Store', crumb: 'Header', back: 'home', render: function (el) {
     var t = A.today(), cats = api.storeCategories();
     var sumCat = function (c, from, to) { return api.list('entries', { type: 'purchase', from: from, to: to }).rows.filter(function (e) { return (e.storeCategory || '') === c; }).reduce(function (a, e) { return a + e.amount; }, 0); };
-    el.innerHTML = '<a class="btn primary upload block" href="#purchase-add">📷 Upload store bill (photo / file)</a><p class="muted small">Only bills are kept here, no item-by-item stock. Each category shows this week against the 4-week average.</p>' +
+    el.innerHTML = '<a class="btn primary upload block" href="#purchase-add">📷 Upload store bill (photo / file)</a>' +
       '<ul class="feats">' + cats.map(function (c) {
         var wk = sumCat(c, R.addDays(t, -6), t), avg = sumCat(c, R.addDays(t, -34), R.addDays(t, -7)) / 4;
-        return '<li><a class="feat" href="#store-cat" data-cat="' + esc(c) + '"><span class="ic">▦</span><span class="t"><b>' + esc(c) + '</b><span>4-week average ' + money(avg) + ' a week</span></span><span class="fig ' + (avg && wk > avg * 1.3 ? 'down' : '') + '">' + money(wk) + '</span></a></li>';
+        return '<li><a class="feat" href="#store-cat" data-cat="' + esc(c) + '"><span class="ic">▦</span><span class="t"><b>' + esc(c) + '</b></span></a></li>';
       }).join('') + '</ul><a class="btn ghost" href="#setup-store">Rename or add store categories</a>';
     $$('[data-cat]', el).forEach(function (a) { a.onclick = function (e) { e.preventDefault(); A.go('store-cat', { cat: a.dataset.cat }); }; });
   } });
@@ -411,8 +411,8 @@
       '<div class="row"><a class="btn primary grow" href="#staff-edit">＋ Add staff</a></div>' +
       (rows.length ? '<ul class="list">' + rows.map(function (s) {
         var p = sal.filter(function (x) { return x.staffId === s.id; })[0];
-        return '<li><button type="button" class="item" data-s="' + s.id + '"><div class="t"><b>' + esc(s.name) + (s.active === false ? ' (left)' : '') + '</b><span>' + esc([s.role, s.phone, 'monthly ' + money(s.salary), (s.files || []).length ? '📎 ' + s.files.length : ''].filter(Boolean).join(' · ')) + '</span></div>' + (p && p.paid ? '<span class="pill good">paid</span>' : '<span class="pill">not paid</span>') + '</button></li>';
-      }).join('') + '</ul>' : A.empty('No staff yet', 'Add the people who work here; their salaries feed Profit & Loss.'));
+        return '<li><button type="button" class="item" data-s="' + s.id + '"><div class="t"><b>' + esc(s.name) + (s.active === false ? ' (left)' : '') + '</b></div></button></li>';
+      }).join('') + '</ul>' : '');
     $$('[data-s]', el).forEach(function (b) { b.onclick = function () { A.go('staff-edit', { id: b.dataset.s }); }; });
   } });
   A.screen('staff-edit', { title: 'Staff member', crumb: 'Staff', back: 'staff', render: function (el, st) {

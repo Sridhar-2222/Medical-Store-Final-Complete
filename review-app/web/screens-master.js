@@ -23,21 +23,7 @@
     return [R.addDays(t, -6), t];
   }
   A.screen('work', { title: function () { return api.workConfig().title; }, crumb: 'Header', back: 'home', render: function (el) {
-    var r = wRange(), rep = api.workReport({ from: r[0], to: r[1] }), cfg = rep.config, today = api.workDay(A.today());
-    el.innerHTML = '<button type="button" class="btn primary upload block" id="wk-today">✎ ' + (Object.keys(today.values).length ? 'Change today\'s counts' : 'Count today\'s work') + '</button>' +
-      A.seg('wk-p', [['today', 'Today'], ['7', '7 days'], ['month', 'This month'], ['30', '30 days']], wState.period) +
-      '<div class="section-title">Key numbers</div>' +
-      (rep.daysCounted ? '<div class="today-strip">' + rep.numbers.map(function (x) { return stat(x.label, fmtNum(x), x.from ? 'from ' + x.from + ' sales' : ''); }).join('') + '</div>' :
-        A.empty('Nothing counted in this period', 'Tap "Count today\'s work". Key numbers like ' + rep.numbers.slice(0, 2).map(function (x) { return x.label.toLowerCase(); }).join(' and ') + ' appear here.')) +
-      '<div class="section-title">Totals (' + rep.daysCounted + ' day(s) counted)</div><div class="card"><div class="tw"><table><tbody>' +
-      cfg.counters.map(function (x) { return '<tr><td>' + esc(x.label) + '</td><td class="n">' + (rep.totals[x.key] || 0) + '</td></tr>'; }).join('') + '</tbody></table></div></div>' +
-      (rep.days.length ? '<div class="section-title">Day by day</div><ul class="list">' + rep.days.slice().reverse().map(function (d) {
-        return '<li><button type="button" class="item" data-d="' + d.date + '"><div class="t"><b>' + esc(A.niceDate(d.date)) + '</b><span>' + esc(cfg.counters.filter(function (x) { return d.values[x.key] !== undefined; }).map(function (x) { return x.label + ' ' + d.values[x.key]; }).join(' · ') + (d.files && d.files.length ? ' · 📷 ' + d.files.length : '')) + '</span></div></button></li>';
-      }).join('') + '</ul>' : '') +
-      '<a class="btn ghost" href="#master-work">Change what is counted (Master)</a>';
-    $('#wk-today', el).onclick = function () { A.go('work-add', { date: A.today() }); };
-    A.onSeg($('#wk-p', el), function (v) { wState.period = v; A.render(); });
-    $$('[data-d]', el).forEach(function (b) { b.onclick = function () { A.go('work-add', { date: b.dataset.d }); }; });
+    el.innerHTML = '<ul class="feats">' + A.featRaw('work-add', '✎', 'Count today\'s work') + A.featRaw('master-work', '⚙', 'Change what is counted') + '</ul>';
   } });
   A.screen('work-add', { title: function () { return api.workConfig().title; }, crumb: 'Work areas', back: 'work', render: function (el, st) {
     var date = (st && st.date) || A.today(), cfg = api.workConfig(), d = api.workDay(date);

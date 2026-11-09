@@ -210,13 +210,13 @@ details.sec > .in { padding: 0 14px 14px; display: grid; gap: 10px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hdr { --t: color-mix(in srgb, var(--a) 18%, var(--card)); --a: color-mix(in srgb, var(--a) 45%, #ffffff); } }
 :root[data-theme="dark"] .hdr { --t: color-mix(in srgb, var(--a) 18%, var(--card)); --a: color-mix(in srgb, var(--a) 45%, #ffffff); }
 .hdr:active { transform: scale(.98); }
-.feat { display: flex; gap: 12px; align-items: center; background: var(--card); border: 2px solid var(--line); border-left: 6px solid var(--ink); border-radius: 14px; padding: 14px; text-decoration: none; color: inherit; min-width: 0; }
-.feat .ic { font-size: 1.4rem; flex: none; width: 34px; text-align: center; }
-.feat .t { flex: 1; min-width: 0; display: grid; gap: 2px; }
-.feat .t b { font-size: 1.02rem; }
-.feat .t span { color: var(--muted); font-size: .86rem; overflow-wrap: anywhere; }
-.feat .fig { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.feats { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.feat { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 10px; min-height: 104px; background: var(--sec-t, var(--card)); border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 18px; padding: 14px; text-decoration: none; color: var(--fg); box-shadow: 0 1px 2px rgba(20,27,45,.05); }
+.feat:active { transform: scale(.98); }
+.feat .ic { font-size: 1.3rem; flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px; background: var(--card); color: var(--ink); }
+.feat .t { min-width: 0; display: grid; }
+.feat .t b { font-size: 1rem; font-weight: 700; line-height: 1.2; }
+.feats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 720px) { .feats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .section-title { font-size: .74rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
 .attach { display: grid; gap: 8px; background: var(--soft); border: 2px dashed var(--line); border-radius: 14px; padding: 10px; }
 .thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -233,7 +233,6 @@ details.sec > .in { padding: 0 14px 14px; display: grid; gap: 10px; }
 .stmt tr.sub td { color: var(--muted); font-size: .85rem; }
 .answer { white-space: pre-wrap; background: var(--soft); border-radius: 12px; padding: 12px; }
 /* large phone text: amounts wrap instead of pushing the page sideways */
-.feat .fig { white-space: normal; text-align: right; max-width: 42%; overflow-wrap: anywhere; }
 .item .end { white-space: normal; max-width: 45%; overflow-wrap: anywhere; }
 .row > * { min-width: 0; }
 .feat .t b, .hdr b { hyphens: auto; }
@@ -257,3 +256,15 @@ label.item.chk input { width: 22px; height: 22px; flex: none; }
 .item.mf input[type=text] { flex: 1 1 100%; }
 .item.mw input[type=text] { flex: 1 1 120px; min-width: 0; }
 ul.plain { margin: 0; padding-left: 18px; }
+
+/* Section colours (9 Nov 2026): each main header keeps its soft colour on every page under it. */
+body[data-sec="accounts"] { --ink: #0f766e; --ink-soft: #d5efe8; --sec-t: #e6f6f1; }
+body[data-sec="work"] { --ink: #b45309; --ink-soft: #f8e6c8; --sec-t: #fdf3e2; }
+body[data-sec="customers"] { --ink: #be185d; --ink-soft: #f9d9e5; --sec-t: #fdebf1; }
+body[data-sec="store"] { --ink: #0369a1; --ink-soft: #d3e8f8; --sec-t: #e6f2fc; }
+body[data-sec="reports"] { --ink: #6d28d9; --ink-soft: #e1d8fb; --sec-t: #efebfd; }
+body[data-sec="staff"] { --ink: #15803d; --ink-soft: #d4efd7; --sec-t: #e8f6e9; }
+body[data-sec="setup"] { --ink: #475569; --ink-soft: #e1e6ee; --sec-t: #eef1f5; }
+body[data-sec="home"] { --ink: #3b5bdb; --ink-soft: #e3e9fc; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body[data-sec] { --sec-t: color-mix(in srgb, var(--ink) 16%, var(--card)); --ink: color-mix(in srgb, var(--ink) 50%, #ffffff); --ink-soft: color-mix(in srgb, var(--ink) 22%, var(--card)); } }
+:root[data-theme="dark"] body[data-sec] { --sec-t: color-mix(in srgb, var(--ink) 16%, var(--card)); --ink: color-mix(in srgb, var(--ink) 50%, #ffffff); --ink-soft: color-mix(in srgb, var(--ink) 22%, var(--card)); }

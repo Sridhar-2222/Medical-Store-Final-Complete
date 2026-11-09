@@ -12,7 +12,7 @@
   A.screen('customers', { title: function () { return api.masterState().names.customers || api.workConfig().customers; }, crumb: 'Header', back: 'home', render: function (el) {
     var n = api.info().counts.customers, due = api.vaultDue({ days: 7 }), offers = api.list('offers').rows.filter(function (o) { return !o.validTill || o.validTill >= A.today(); });
     var withDisc = api.list('customers').rows.filter(function (c) { return c.discountPct > 0; }).length;
-    el.innerHTML = '<p class="muted small">Every customer has a vault titled <b>' + esc(vaultTitle()) + '</b>: records, photos, files, discounts and your messages.</p><ul class="feats">' +
+    el.innerHTML = '<ul class="feats">' +
       feat('cust-list', '☺', 'Customer list', 'Open a customer\'s vault · add a customer', String(n)) +
       feat('bulk', '📣', 'Bulk reminder', 'Discount offer or video to many customers at once') +
       feat('reminders', '⏰', 'Reminders due', 'Refills, service dates', due.length ? due.length + ' this week' : 'none') +
@@ -188,7 +188,7 @@
   // ================================================================ REPORTS (level 2)
   A.screen('reports', { title: 'Reports', crumb: 'Header', back: 'home', render: function (el) {
     var al = api.alerts({}), pl = al.pl;
-    el.innerHTML = '<div class="today-strip">' + stat('Last 30 days: sales', money(pl.sales)) + stat('Net profit', money(pl.net), '', pl.net < 0 ? 'bad' : 'good') + '</div><ul class="feats">' +
+    el.innerHTML = '<ul class="feats">' +
       feat('daily', '☰', 'Daily summary', 'One day on one page · share on WhatsApp') +
       feat('pl', '∑', 'Profit & Loss', 'Any period, fixed costs spread per day', money(pl.net), pl.net < 0 ? 'down' : '') +
       feat('alerts', '⚠', 'Alerts', 'What needs checking', String(al.flags.length), al.flags.some(function (f) { return f.severity === 'high'; }) ? 'down' : '') +
@@ -275,7 +275,7 @@
   // ================================================================ BUSINESS SETUP (level 2)
   A.screen('setup', { title: 'Master', crumb: 'Header · no login needed', back: 'home', render: function (el) {
     var s = A.S(), wc = api.workConfig(), ms = api.masterState(), off = Object.keys(ms.hidden).filter(function (k) { return ms.hidden[k]; }).length;
-    el.innerHTML = '<p class="muted small">Change the app for your business here. Changes apply at once on this phone (and on every phone connected to the office system).</p><ul class="feats">' +
+    el.innerHTML = '<ul class="feats">' +
       A.feat('master-features', '☰', 'Features: show, hide, rename', off ? off + ' switched off' : 'All switched on') +
       A.feat('master-work', '✎', 'Work areas for ' + A.P().name, wc.title + ': ' + wc.counters.map(function (x) { return x.label; }).slice(0, 3).join(', ') + (wc.counters.length > 3 ? '…' : '')) +
       '</ul><div class="section-title">Business setup</div><ul class="feats">' +
