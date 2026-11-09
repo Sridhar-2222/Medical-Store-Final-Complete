@@ -32,3 +32,22 @@ DATABASE SETUP (One time):
 - Go to supabase.com -> SQL Editor -> Paste content of supabase-schema.sql -> Run
 
 Need help? Reply "Deploy help"
+
+-----------------------------------------------------
+NEW: GENERIC MULTI-INDUSTRY VERSION -> see generic-app/
+-----------------------------------------------------
+BizCore (generic-app/) is the same idea made for ANY business:
+pharmacy, grocery, restaurant, salon, clinic, clothing, electronics,
+hardware, bakery, garage, gym, services.
+- No npm install, no Supabase needed (Supabase is an optional backup copy)
+- Open generic-app/dist/bizcore-standalone.html to use it with no server at all
+- Or run: node generic-app/server/server.js  (shared by all devices)
+Full guide: generic-app/README.md
+
+-----------------------------------------------------
+LATEST: BizCore Review (review-app/) - rebuilt from scratch
+-----------------------------------------------------
+Phone app for owners: sales vs spending, cash in hand, walk-ins, stock and a
+Customer Vault titled with the business name. Works offline on the phone;
+optional office system. Android app (Fingertrip.biz AI): generic-app/android-app/release/Fingertrip-biz-AI.apk
+Guide: review-app/README.md
