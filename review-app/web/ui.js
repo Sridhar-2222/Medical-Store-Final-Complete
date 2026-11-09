@@ -4,7 +4,7 @@
   'use strict';
   var Base = window.BizBase, Industries = window.BizIndustries, R = window.BizReview, Work = window.BizWorkAreas;
   var KEY = 'bizreview-v2', AIKEY = 'bizreview-gemini-key';
-  var APP_VERSION = '3.2.1';   // keep in step with android/app/build.gradle versionName
+  var APP_VERSION = '3.2.2';   // keep in step with android/app/build.gradle versionName
   var Cap = window.Capacitor;
   var native = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
   var embedded = (function () { try { return window.top !== window.self; } catch (e) { return true; } })();
