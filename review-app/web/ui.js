@@ -4,7 +4,7 @@
   'use strict';
   var Base = window.BizBase, Industries = window.BizIndustries, R = window.BizReview, Work = window.BizWorkAreas;
   var KEY = 'bizreview-v2', AIKEY = 'bizreview-gemini-key';
-  var APP_VERSION = '3.2.0';   // keep in step with android/app/build.gradle versionName
+  var APP_VERSION = '3.2.1';   // keep in step with android/app/build.gradle versionName
   var Cap = window.Capacitor;
   var native = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
   var embedded = (function () { try { return window.top !== window.self; } catch (e) { return true; } })();
@@ -242,15 +242,14 @@
       '<div class="types" id="types">' + Industries.list().map(function (i) {
         return '<button type="button" data-k="' + i.key + '"' + (i.key === chosen ? ' class="on"' : '') + '><span class="e" aria-hidden="true">' + i.icon + '</span><b>' + esc(i.name) + '</b></button>';
       }).join('') + '</div>' +
-      '<div class="card">' + field('Business name', input('su-name', 'text', '', 'placeholder="e.g. Sai Ram Hotel" autocomplete="organization"')) +
+      '<div class="card">' + field('Business name', input('su-name', 'text', '', 'autocomplete="organization"')) +
       field('Phone (for messages to customers)', input('su-phone', 'tel', '', 'inputmode="tel"')) +
-      '<label class="chk"><input type="checkbox" id="su-sample" checked> Show me 30 days of example numbers first (you can erase them later)</label>' +
       '<button type="button" class="btn primary block" id="su-go">Start</button></div></main>';
     $$('#types button').forEach(function (b) { b.onclick = function () { chosen = b.dataset.k; $$('#types button').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
     $('#su-go').onclick = function () {
       var name = val('su-name').trim();
       if (!name) { toast('Enter your business name', true); $('#su-name').focus(); return; }
-      if (act(function () { return api.setup({ industry: chosen, businessName: name, phone: val('su-phone'), loadSamples: $('#su-sample').checked }); })) { location.hash = 'home'; render(); toast('Ready. Here is your business at a glance.'); }
+      if (act(function () { return api.setup({ industry: chosen, businessName: name, phone: val('su-phone'), loadSamples: false }); })) { location.hash = 'home'; render(); toast('Ready'); }
     };
   }
 

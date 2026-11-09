@@ -25,7 +25,6 @@
   A.screen('work', { title: function () { return api.workConfig().title; }, crumb: 'Header', back: 'home', render: function (el) {
     var r = wRange(), rep = api.workReport({ from: r[0], to: r[1] }), cfg = rep.config, today = api.workDay(A.today());
     el.innerHTML = '<button type="button" class="btn primary upload block" id="wk-today">✎ ' + (Object.keys(today.values).length ? 'Change today\'s counts' : 'Count today\'s work') + '</button>' +
-      '<p class="eg">' + esc(cfg.counters.slice(0, 2).map(function (x) { return x.label + ' ' + x.eg; }).join(' · ')) + '</p>' +
       A.seg('wk-p', [['today', 'Today'], ['7', '7 days'], ['month', 'This month'], ['30', '30 days']], wState.period) +
       '<div class="section-title">Key numbers</div>' +
       (rep.daysCounted ? '<div class="today-strip">' + rep.numbers.map(function (x) { return stat(x.label, fmtNum(x), x.from ? 'from ' + x.from + ' sales' : ''); }).join('') + '</div>' :
@@ -43,7 +42,7 @@
   A.screen('work-add', { title: function () { return api.workConfig().title; }, crumb: 'Work areas', back: 'work', render: function (el, st) {
     var date = (st && st.date) || A.today(), cfg = api.workConfig(), d = api.workDay(date);
     el.innerHTML = '<div class="card"><div class="grid2">' + A.field('Date', A.input('wa-date', 'date', date, 'max="' + A.today() + '"')) + '<div></div>' +
-      cfg.counters.map(function (x) { return A.field(x.label, A.input('wa-' + x.key, 'number', d.values[x.key] === undefined ? '' : d.values[x.key], 'min="0" placeholder="' + esc(x.eg) + '"')); }).join('') + '</div>' +
+      cfg.counters.map(function (x) { return A.field(x.label, A.input('wa-' + x.key, 'number', d.values[x.key] === undefined ? '' : d.values[x.key], 'min="0"')); }).join('') + '</div>' +
       '<label class="f">Note' + A.input('wa-note', 'text', d.note) + '</label>' +
       '<div class="section-title">Register / report page or bill (optional)</div><div id="wa-att"></div>' +
       '<button type="button" class="btn primary block" id="wa-save">Save</button></div>';
@@ -97,8 +96,8 @@
       '<div class="card"><div class="grid2">' + A.field('Name of this header', A.input('mw-title', 'text', cfg.title)) + A.field('Customers are called', A.input('mw-cust', 'text', cfg.customers)) +
       A.field('Walk-in count is called', A.input('mw-vis', 'text', cfg.visitors)) + '<div></div></div>' +
       '<div class="section-title">Things to count</div><ul class="list" id="mw-list">' + rows.map(function (x, i) {
-        return '<li class="item mw"><input type="text" data-l="' + i + '" value="' + esc(x.label) + '" aria-label="Name"><input type="text" data-e="' + i + '" value="' + esc(x.eg) + '" placeholder="e.g. 10" aria-label="Example" style="max-width:110px"><button type="button" class="btn small danger" data-rm="' + i + '" aria-label="Remove">✕</button></li>';
-      }).join('') + '</ul><div class="row"><input type="text" id="mw-new" placeholder="Add, e.g. Parcels packed"><button type="button" class="btn" id="mw-add">Add</button></div>' +
+        return '<li class="item mw"><input type="text" data-l="' + i + '" value="' + esc(x.label) + '" aria-label="Name"><input type="text" data-e="' + i + '" value="' + esc(x.eg) + '" aria-label="Example" style="max-width:110px"><button type="button" class="btn small danger" data-rm="' + i + '" aria-label="Remove">✕</button></li>';
+      }).join('') + '</ul><div class="row"><input type="text" id="mw-new" placeholder="Add"><button type="button" class="btn" id="mw-add">Add</button></div>' +
       '<button type="button" class="btn primary block" id="mw-save">Save</button>' + (cfg.custom ? '<button type="button" class="btn ghost block" id="mw-reset">Back to the standard set</button>' : '') + '</div>' +
       '<div class="section-title">Key numbers for ' + esc(A.P().name) + '</div><div class="card"><ul class="plain">' + cfg.numbers.map(function (x) { return '<li>' + esc(x.label) + '</li>'; }).join('') + '</ul><p class="muted small">A key number shows only while the counts it needs are in the list.</p></div>';
     function read() { return rows.map(function (x, i) { return { key: x.key, label: $('[data-l="' + i + '"]', el).value, eg: $('[data-e="' + i + '"]', el).value }; }); }

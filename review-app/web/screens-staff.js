@@ -31,8 +31,8 @@
     el.innerHTML = '<div class="card">' + A.seg('ad-kind', [['given', 'Advance given'], ['recovered', 'Advance recovered']], kind) +
       '<div class="grid2">' + A.field('Staff member', '<select id="ad-st">' + A.opt(opts, a ? a.staffId : (st && st.staffId) || '') + '</select>') +
       A.field('Amount ₹', A.input('ad-amt', 'number', a ? a.amount : '', 'min="0"')) + A.field('Date', A.input('ad-date', 'date', a ? a.date : A.today())) +
-      '<label class="f" id="ad-how-l">How<select id="ad-how"></select></label>' + A.field('Given / received by', A.input('ad-by', 'text', a ? a.givenBy : '', 'placeholder="e.g. Owner"')) +
-      '<label class="f">Reason / note' + A.input('ad-note', 'text', a ? a.note : '', 'placeholder="e.g. Festival advance"') + '</label></div>' +
+      '<label class="f" id="ad-how-l">How<select id="ad-how"></select></label>' + A.field('Given / received by', A.input('ad-by', 'text', a ? a.givenBy : '')) +
+      '<label class="f">Reason / note' + A.input('ad-note', 'text', a ? a.note : '') + '</label></div>' +
       '<div class="section-title">Signed slip / voucher</div><div id="ad-att"></div>' +
       '<div class="row"><button type="button" class="btn primary grow" id="ad-save">Save</button>' + (a ? '<button type="button" class="btn danger" id="ad-del">Delete</button>' : '') + '</div></div>';
     function how() {
@@ -112,9 +112,9 @@
       '<button type="button" class="btn primary block" id="bk-go">Start sending</button></div>';
     function what() {
       var w = $('#bk-what', el);
-      if (bulk.kind === 'offer') w.innerHTML = offers.length ? A.field('Offer', '<select id="bk-offer">' + A.opt(offers.map(function (o) { return { value: o.id, text: o.title + (o.validTill ? ' (till ' + A.niceDate(o.validTill) + ')' : '') }; }), bulk.offerId) + '</select>') + '<a class="btn ghost" href="#offer-add">＋ New offer</a>' : A.empty('No active offers', 'e.g. Festival 10% off', '<a class="btn primary" href="#offer-add">＋ New offer</a>');
+      if (bulk.kind === 'offer') w.innerHTML = offers.length ? A.field('Offer', '<select id="bk-offer">' + A.opt(offers.map(function (o) { return { value: o.id, text: o.title + (o.validTill ? ' (till ' + A.niceDate(o.validTill) + ')' : '') }; }), bulk.offerId) + '</select>') + '<a class="btn ghost" href="#offer-add">＋ New offer</a>' : A.empty('No active offers', 'Create an offer first', '<a class="btn primary" href="#offer-add">＋ New offer</a>');
       else if (bulk.kind === 'video') w.innerHTML = A.field('YouTube link', A.input('bk-video', 'url', bulk.video, 'placeholder="https://youtu.be/…"')) + A.videoCard(bulk.video, 'Video', 'Customers will get this link');
-      else w.innerHTML = A.field('Message ({name} = customer\'s name)', '<textarea id="bk-text" placeholder="e.g. Dear {name}, our shop is open on Sunday.">' + esc(bulk.text) + '</textarea>');
+      else w.innerHTML = A.field('Message ({name} = customer\'s name)', '<textarea id="bk-text">' + esc(bulk.text) + '</textarea>');
       var o = $('#bk-offer', el); if (o) o.onchange = function () { bulk.offerId = o.value; preview(); };
       var v = $('#bk-video', el); if (v) v.oninput = function () { bulk.video = v.value; preview(); };
       var tx = $('#bk-text', el); if (tx) tx.oninput = function () { bulk.text = tx.value; preview(); };

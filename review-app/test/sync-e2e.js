@@ -24,7 +24,7 @@ const { createServer } = require('../server/server');
   // Phone A: used on its own first, then connected (sends its data to the empty office)
   const A = await phone();
   await A.p.goto(app); await A.p.click('[data-k="restaurant"]'); await A.p.fill('#su-name', 'Spice Route'); await A.p.click('#su-go');
-  await A.p.waitForSelector('.hdr');
+  await A.p.waitForSelector('.hdr'); await A.p.evaluate(() => App.api.loadReviewSamples()); // test data; the app no longer offers example numbers
   const phoneEntries = await A.p.evaluate(() => App.api.info().counts.entries);
   await connect(A.p);
   if (srv.app.list('entries').total !== phoneEntries) throw new Error('office did not receive the phone data');
@@ -32,7 +32,7 @@ const { createServer } = require('../server/server');
 
   // Phone B: connects and gets the office data
   const B = await phone();
-  await B.p.goto(app); await B.p.click('[data-k="restaurant"]'); await B.p.fill('#su-name', 'temp'); await B.p.uncheck('#su-sample'); await B.p.click('#su-go');
+  await B.p.goto(app); await B.p.click('[data-k="restaurant"]'); await B.p.fill('#su-name', 'temp'); await B.p.click('#su-go');
   await B.p.waitForSelector('.hdr');
   await connect(B.p);
   const nameB = await B.p.evaluate(() => App.S().businessName);

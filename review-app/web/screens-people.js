@@ -15,7 +15,7 @@
     el.innerHTML = '<p class="muted small">Every customer has a vault titled <b>' + esc(vaultTitle()) + '</b>: records, photos, files, discounts and your messages.</p><ul class="feats">' +
       feat('cust-list', '☺', 'Customer list', 'Open a customer\'s vault · add a customer', String(n)) +
       feat('bulk', '📣', 'Bulk reminder', 'Discount offer or video to many customers at once') +
-      feat('reminders', '⏰', 'Reminders due', 'e.g. refill, service date', due.length ? due.length + ' this week' : 'none') +
+      feat('reminders', '⏰', 'Reminders due', 'Refills, service dates', due.length ? due.length + ' this week' : 'none') +
       feat('discounts', '%', 'Customer discount', 'Standing discount for regular customers', withDisc + ' customers') +
       feat('offers', '★', 'Special discount', 'One-off offers with a validity date', offers.length + ' active') +
       feat('messages', '✉', 'Messages', 'Everything sent to customers') +
@@ -86,7 +86,7 @@
     el.innerHTML = '<div class="card"><p class="muted small">' + esc(c.name) + ' · ' + esc(vaultTitle()) + ' vault</p>' +
       A.field('Kind', A.seg('vr-kind', kinds.map(function (k) { return [k.key, k.label]; }).concat([['document', 'Document'], ['note', 'Note']]), kind)) +
       '<div class="section-title">Photo or file</div><div id="vr-att"></div>' +
-      A.field('Title', A.input('vr-title', 'text', r ? r.title : '', 'placeholder="e.g. BP tablets, Honda City, Sofa quote"')) +
+      A.field('Title', A.input('vr-title', 'text', r ? r.title : '')) +
       '<div class="grid2">' + A.field('Date', A.input('vr-date', 'date', r ? r.date : A.today())) + '<label class="f"><span id="vr-due-l">Reminder date</span>' + A.input('vr-due', 'date', r ? r.dueDate : '') + '</label></div>' +
       A.field('Details', '<textarea id="vr-details">' + esc(r ? r.details : '') + '</textarea>') +
       (r ? '<label class="chk"><input type="checkbox" id="vr-done"' + (r.done ? ' checked' : '') + '> Done (no more reminders)</label>' : '') +
@@ -278,7 +278,6 @@
     el.innerHTML = '<p class="muted small">Change the app for your business here. Changes apply at once on this phone (and on every phone connected to the office system).</p><ul class="feats">' +
       A.feat('master-features', '☰', 'Features: show, hide, rename', off ? off + ' switched off' : 'All switched on') +
       A.feat('master-work', '✎', 'Work areas for ' + A.P().name, wc.title + ': ' + wc.counters.map(function (x) { return x.label; }).slice(0, 3).join(', ') + (wc.counters.length > 3 ? '…' : '')) +
-      A.feat('master-examples', 'e.g.', 'Example lines', 'The grey "e.g." line under each feature') +
       '</ul><div class="section-title">Business setup</div><ul class="feats">' +
       A.featRaw('setup-biz', '⌂', 'Business details', s.businessName + ' · vault title "' + vaultTitle() + '"') +
       A.featRaw('setup-depts', 'A', 'Sales departments', deps().filter(function (d) { return d.active !== false; }).map(function (d) { return d.name; }).join(', ')) +
@@ -287,13 +286,13 @@
       A.featRaw('setup-video', '▶', 'Videos', 'YouTube clips for the owner and for customers') +
       A.featRaw('setup-ai', '✦', 'AI', (s.aiProvider === 'openai' ? 'OpenAI' : 'Google Gemini') + (A.lsGet(A.AIKEY) ? ' · key added' : ' · no key (optional)')) +
       A.featRaw('sync', '⇄', 'Office system', A.sync.url ? 'Connected' : 'This phone only') +
-      A.featRaw('backup', '⇩', 'Backup & data', 'Save, restore, Excel, example data') +
+      A.featRaw('backup', '⇩', 'Backup & data', 'Save, restore, Excel') +
       A.featRaw('guide', '?', 'Guide for my business', A.P().name) + '</ul><p class="app-version">Fingertrip.biz AI version ' + esc(A.VERSION) + '</p>';
   } });
   A.screen('setup-biz', { title: 'Business details', crumb: 'Master', back: 'setup', render: function (el) {
     var s = A.S();
     el.innerHTML = '<div class="card">' + A.field('Business name', A.input('sb-name', 'text', s.businessName)) +
-      A.field('Customer vault title', A.input('sb-vault', 'text', s.vaultTitle, 'placeholder="' + esc(s.businessName) + '"')) + '<p class="muted small">Customers see this name on their vault and messages, e.g. "Sai Ram Hotel", "ABC Furniture Shop", "123 Building Materials".</p>' +
+      A.field('Customer vault title', A.input('sb-vault', 'text', s.vaultTitle, 'placeholder="' + esc(s.businessName) + '"')) + '<p class="muted small">Customers see this name on their vault and messages.</p>' +
       A.field('Phone', A.input('sb-phone', 'tel', s.phone)) + A.field('Address', A.input('sb-addr', 'text', s.address)) +
       A.field('Type of business', '<select id="sb-ind">' + A.opt(A.Industries.list().map(function (i) { return { value: i.key, text: i.icon + ' ' + i.name }; }), s.industry) + '</select>') +
       '<div class="grid2">' + A.field('Morning ends at', A.input('sb-split', 'time', s.halfDaySplit)) + A.field('Currency', A.input('sb-cur', 'text', s.currency)) +
@@ -306,7 +305,7 @@
   } });
   A.screen('setup-depts', { title: 'Sales departments', crumb: 'Master', back: 'setup', render: function (el) {
     var list = deps();
-    el.innerHTML = '<p class="muted small">Sales are entered per department (A, B, C…). Rename them to fit your business, e.g. Dine-in, Catering, Door delivery.</p>' +
+    el.innerHTML = '<p class="muted small">Sales are entered per department (A, B, C…). Rename them to fit your business.</p>' +
       '<div class="row">' + A.input('dp-new', 'text', '', 'class="grow" placeholder="New department"') + '<button type="button" class="btn primary" id="dp-add">Add</button></div>' +
       '<ul class="list">' + list.map(function (d, i) { return '<li class="item"><span class="pill ink">' + String.fromCharCode(65 + i) + '</span><div class="t"><input value="' + esc(d.name) + '" data-n="' + d.id + '" aria-label="Department name"></div><button type="button" class="btn small" data-h="' + d.id + '">' + (d.active === false ? 'Show' : 'Hide') + '</button></li>'; }).join('') + '</ul>';
     $('#dp-add', el).onclick = function () { if (A.act(function () { return api.saveDepartment({ name: A.val('dp-new', el) }); }, 'Added')) A.render(); };
@@ -388,7 +387,6 @@
       '<label class="btn block" for="bk-file">Restore from a backup file</label><input type="file" id="bk-file" accept=".json,application/json" hidden></div>' +
       '<div class="card"><h2>Excel (CSV)</h2><div class="row">' + [['entries', 'Accounts'], ['customers', 'Customers'], ['staff', 'Staff'], ['vaultRecords', 'Vault records'], ['messages', 'Messages']].map(function (x) { return '<button type="button" class="btn small grow" data-csv="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>' +
       '<label class="btn block" for="bk-imp">Import from Excel / billing software (CSV)</label><input type="file" id="bk-imp" accept=".csv,text/csv" hidden><p class="muted small">Columns: date, department, type (sales, collection, walk-ins, expense, purchase), amount, method, half.</p></div>' +
-      '<div class="card"><h2>Example numbers</h2><button type="button" class="btn block" id="bk-sample">Add 30 days of example numbers</button></div>' +
       '<div class="card"><h2>Start over</h2><button type="button" class="btn danger block" id="bk-erase">Erase everything on this phone</button></div>';
     var stamp = A.today();
     $('#bk-save', el).onclick = function () {
@@ -408,7 +406,6 @@
     };
     $$('[data-csv]', el).forEach(function (b) { b.onclick = function () { A.saveFile(b.dataset.csv + '-' + stamp + '.csv', '﻿' + api.exportCSV(b.dataset.csv), 'text/csv'); }; });
     $('#bk-imp', el).onchange = function (e) { var f = e.target.files[0]; if (!f) return; A.readFile(f).then(function (t) { var rows = A.Base.parseCSV(t); var r = A.act(function () { return api.importEntries(rows); }); if (r) A.toast('Imported ' + r.imported + (r.skippedCount ? ', skipped ' + r.skippedCount : '')); }); };
-    $('#bk-sample', el).onclick = function () { if (A.act(function () { return api.loadReviewSamples(); }, 'Example numbers added')) A.go('home'); };
     $('#bk-erase', el).onclick = function () { A.confirmSheet('Erase all accounts, customers, staff and vaults on this phone? This cannot be undone.', 'Erase', true).then(function (ok) { if (ok && A.act(function () { return api.resetAll(); }, 'Erased')) A.go('home'); }); };
   } });
 

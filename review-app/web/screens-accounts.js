@@ -33,7 +33,7 @@
   }
   function staffOf(id, el) { var v = A.val(id, el); if (v !== '' || $('#' + id, el)) A.lsSet(LASTSTAFF, v); var st = v ? api.get('staff', v) : null; return { staffId: st ? st.id : '', staffName: st ? st.name : '' }; }
   function nowTime() { var d = new Date(); return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes(); }
-  function eg(key) { var x = api.masterState().examples[key] || api.kinds().featureExamples[key]; return x ? '<p class="eg">' + esc(x) + '</p>' : ''; }
+  function eg() { return ''; } // example lines removed (owner, 9 Nov 2026)
   function uploadBtn(id, text) { return '<button type="button" class="btn upload block" id="' + id + '">📷 ' + esc(text || 'Upload bill (photo / file)') + '</button>'; }
   A.staffPick = staffPick; A.staffOf = staffOf; A.eg = eg; A.uploadBtn = uploadBtn;
   A.stat = stat; A.feat = feat; A.featRaw = featRaw; A.ytId = ytId; A.videoCard = videoCard; A.monthName = monthName; A.shiftMonth = shiftMonth;
@@ -49,22 +49,20 @@
     var staff = api.list('staff').rows.filter(function (x) { return x.active !== false; }).length;
     var wc = api.workConfig(), wt = api.workDay(t), ms = api.masterState();
     var H = [
-      ['accounts', '₹', 'Accounts', 'Net profit this month ' + money(month.net), month.net < 0],
-      ['work', '✎', wc.title, Object.keys(wt.values).length ? 'Today counted' : 'Count today\'s work'],
-      ['customers', '☺', wc.customers, due ? due + ' to contact this week' : api.info().counts.customers + ' ' + wc.customers.toLowerCase()],
-      ['store', '▦', 'Store', bills + ' purchase bills this week'],
-      ['reports', '▤', 'Reports', alerts ? alerts + ' things to check' : 'All looks normal', alerts > 0],
-      ['staff', '◎', 'Staff', staff + ' people'],
-      ['setup', '⚙', 'Master', 'Features, names, work areas, setup']
+      ['accounts', '₹', 'Accounts', 'Enter sales, purchases and expenses'],
+      ['work', '✎', wc.title, 'Count today\'s work'],
+      ['customers', '☺', wc.customers, 'Customer records, reminders, messages'],
+      ['store', '▦', 'Store', 'Upload purchase bills'],
+      ['reports', '▤', 'Reports', 'See summaries and checks'],
+      ['staff', '◎', 'Staff', 'Attendance, advances, salaries'],
+      ['setup', '⚙', 'Master', 'Settings, names, backup']
     ].filter(function (h) { return !ms.hidden[h[0]]; }).map(function (h) { if (ms.names[h[0]] && h[0] !== 'setup') h[2] = ms.names[h[0]]; return h; });
-    el.innerHTML = '<div class="today-strip">' + stat('Sales today', money(pl.sales)) + stat('Net profit today', money(pl.net), 'after a day\'s share of fixed costs', pl.net < 0 ? 'bad' : 'good') + '</div>' +
-      videoCard(s.ownerVideo, 'How to use Fingertrip.biz AI', 'Video for the owner and staff') +
+    el.innerHTML =       videoCard(s.ownerVideo, 'How to use Fingertrip.biz AI', 'Video for the owner and staff') +
       '<div class="section-title">Main headers</div>' +
       '<div class="hdr-wrap" id="hw"><div class="hdr-grid" id="hg">' + H.map(function (h) {
         return '<a class="hdr" href="#' + h[0] + '"><span class="cap">Header</span><span class="body"><span class="ic" aria-hidden="true">' + h[1] + '</span><b>' + esc(h[2]) + '</b><span class="fig' + (h[4] ? ' bad' : '') + '">' + esc(h[3]) + '</span></span></a>';
       }).join('') + '</div></div>' +
-      (api.info().counts.entries ? '' : '<div class="card"><p class="muted">No numbers yet. Open <b>Accounts → Sales</b> to add today\'s sales, or <b>Store</b> to photograph a purchase bill.</p><button type="button" class="btn ghost" id="h-sample">Show me 30 days of example numbers</button></div>');
-    var hs = $('#h-sample', el); if (hs) hs.onclick = function () { if (A.act(function () { return api.loadReviewSamples(); }, 'Example numbers added')) A.render(); };
+      (api.info().counts.entries ? '' : '<div class="card"><p class="muted">No numbers yet. Open <b>Accounts → Sales</b> to add today\'s sales, or <b>Store</b> to photograph a purchase bill.</p></div>');
     requestAnimationFrame(function () { fingertip($('#hw', el), $('#hg', el)); });
   } });
 
@@ -257,17 +255,15 @@
   });
   A.screen('exp-add', { title: function () { return 'Expense'; }, crumb: 'Accounts', back: 'accounts', render: function (el, st) {
     var kind = (st && st.kind) || 'variable', e = st && st.id ? api.get('entries', st.id) : null;
-    var ex = api.kinds().examples[kind];
     var cat = e ? e.category : (st && st.category) || '';
     el.innerHTML = '<div class="card"><h2>' + esc(KL[kind]) + '</h2>' +
-      A.field('What for (examples)', A.seg('xa-cat', ex.map(function (c) { return [c, 'e.g. ' + c]; }), cat)) + A.field('Or type it', A.input('xa-cat2', 'text', ex.indexOf(cat) < 0 ? cat : '')) +
+      A.field('What for', A.input('xa-cat2', 'text', cat)) +
       '<div class="section-title">Bill / voucher</div><div id="xa-att"></div>' +
       '<div class="grid2">' + A.field(kind === 'fixed' ? 'Amount for the month ₹' : 'Amount ₹', A.input('xa-amt', 'number', e ? e.amount : '', 'min="0"')) +
       (kind === 'fixed' ? A.field('For month', A.input('xa-month', 'month', e ? e.month : (st && st.month) || monthOf())) : A.field('Date', A.input('xa-date', 'date', e ? e.date : A.today()))) +
       A.field('Paid to', A.input('xa-to', 'text', e ? e.vendor : '')) + A.field('Paid by', '<select id="xa-paid">' + A.opt(['Cash', 'UPI', 'Card', 'Bank transfer', 'Credit'], e ? e.method : 'Cash') + '</select>') +
       '<label class="f full">' + (kind === 'sudden' ? 'Reason (required)' : 'Note') + A.input('xa-note', 'text', e ? e.note : '') + '</label></div>' + (kind === 'fixed' ? '' : staffPick('xa-staff', e ? e.staffId : undefined)) +
       '<div class="row"><button type="button" class="btn primary grow" id="xa-save">Save</button>' + (e ? '<button type="button" class="btn danger" id="xa-del">Delete</button>' : '') + '</div></div>';
-    A.onSeg($('#xa-cat', el), function (v) { cat = v; $('#xa-cat2', el).value = ''; });
     var att = A.files.attach($('#xa-att', el), { files: e ? e.files : [], read: 'bill', label: 'Photo of bill', onRead: function (o) {
       if (o.total) $('#xa-amt', el).value = o.total; if (o.vendor) $('#xa-to', el).value = o.vendor; if (o.date && $('#xa-date', el)) $('#xa-date', el).value = o.date;
     } });
