@@ -60,7 +60,7 @@
     el.innerHTML =       videoCard(s.ownerVideo, 'How to use Fingertrip.biz AI', 'Video for the owner and staff') +
       '<div class="section-title">Main headers</div>' +
       '<div class="hdr-wrap" id="hw"><div class="hdr-grid" id="hg">' + H.map(function (h) {
-        return '<a class="hdr" href="#' + h[0] + '"><span class="cap">Header</span><span class="body"><span class="ic" aria-hidden="true">' + h[1] + '</span><b>' + esc(h[2]) + '</b><span class="fig' + (h[4] ? ' bad' : '') + '">' + esc(h[3]) + '</span></span></a>';
+        return '<a class="hdr hdr-' + h[0] + '" href="#' + h[0] + '"><span class="cap">Header</span><span class="body"><span class="ic" aria-hidden="true">' + h[1] + '</span><b>' + esc(h[2]) + '</b></span></a>';
       }).join('') + '</div></div>' +
       (api.info().counts.entries ? '' : '<div class="card"><p class="muted">No numbers yet. Open <b>Accounts → Sales</b> to add today\'s sales, or <b>Store</b> to photograph a purchase bill.</p></div>');
     requestAnimationFrame(function () { fingertip($('#hw', el), $('#hg', el)); });

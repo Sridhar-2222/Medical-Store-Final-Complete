@@ -188,20 +188,27 @@ details.sec > .in { padding: 0 14px 14px; display: grid; gap: 10px; }
 .today-strip .stat { flex: 1 1 140px; }
 .hdr-wrap { position: relative; padding: 8px 4px; }
 .hdr-wrap svg.finger { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
-.finger path { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; }
-.finger path.r1 { stroke-width: 4; opacity: .85; }
-.finger path.r2 { stroke-width: 2; opacity: .35; }
+.finger path { fill: none; stroke: var(--line); stroke-linecap: round; stroke-linejoin: round; }
+.finger path.r1 { stroke-width: 3; opacity: .9; }
+.finger path.r2 { stroke-width: 1.5; opacity: .6; }
 .finger.draw path { animation: fingerdraw 2.2s ease-out forwards; }
 @keyframes fingerdraw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
 .hdr-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
 @media (min-width: 720px) { .hdr-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.hdr { display: grid; align-content: start; gap: 6px; background: var(--card); border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; text-decoration: none; color: var(--fg); box-shadow: var(--shadow); min-height: 150px; }
-.hdr .cap { background: var(--ink); color: var(--on-ink); font-size: .68rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 5px 12px; }
-.hdr .body { padding: 6px 12px 12px; display: grid; gap: 4px; }
-.hdr .ic { font-size: 1.6rem; line-height: 1; }
-.hdr b { font-size: 1.12rem; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; overflow-wrap: anywhere; }
-.hdr .fig { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); overflow-wrap: anywhere; }
-.hdr .fig.bad { color: var(--bad); }
+.hdr { --t: #eef2fb; --a: #3b5bdb; display: grid; align-content: start; background: var(--t); border: 1px solid color-mix(in srgb, var(--a) 22%, transparent); border-radius: 20px; overflow: hidden; text-decoration: none; color: var(--fg); box-shadow: 0 1px 2px rgba(20,27,45,.05); min-height: 118px; }
+.hdr .cap { color: var(--a); font-size: .64rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; padding: 12px 14px 0; opacity: .8; }
+.hdr .body { padding: 6px 14px 16px; display: grid; gap: 8px; justify-items: start; }
+.hdr .ic { font-size: 1.5rem; line-height: 1; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: var(--card); color: var(--a); }
+.hdr b { font-size: 1.05rem; font-weight: 700; letter-spacing: .01em; color: var(--fg); overflow-wrap: anywhere; }
+.hdr-accounts { --t: #e6f6f1; --a: #0f766e; }
+.hdr-work { --t: #fdf3e2; --a: #b45309; }
+.hdr-customers { --t: #fdebf1; --a: #be185d; }
+.hdr-store { --t: #e6f2fc; --a: #0369a1; }
+.hdr-reports { --t: #efebfd; --a: #6d28d9; }
+.hdr-staff { --t: #e8f6e9; --a: #15803d; }
+.hdr-setup { --t: #eef1f5; --a: #475569; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hdr { --t: color-mix(in srgb, var(--a) 18%, var(--card)); --a: color-mix(in srgb, var(--a) 45%, #ffffff); } }
+:root[data-theme="dark"] .hdr { --t: color-mix(in srgb, var(--a) 18%, var(--card)); --a: color-mix(in srgb, var(--a) 45%, #ffffff); }
 .hdr:active { transform: scale(.98); }
 .feat { display: flex; gap: 12px; align-items: center; background: var(--card); border: 2px solid var(--line); border-left: 6px solid var(--ink); border-radius: 14px; padding: 14px; text-decoration: none; color: inherit; min-width: 0; }
 .feat .ic { font-size: 1.4rem; flex: none; width: 34px; text-align: center; }
@@ -234,7 +241,7 @@ details.sec > .in { padding: 0 14px 14px; display: grid; gap: 10px; }
 /* 3.2: "e.g." example lines, upload buttons, header names that never split mid-word */
 .eg { margin: 2px 2px 0; color: var(--muted); font-size: .86rem; font-style: italic; }
 .btn.upload { font-size: 1.02rem; font-weight: 800; }
-.hdr b { overflow-wrap: normal; word-break: normal; hyphens: manual; letter-spacing: .01em; font-size: min(1.12rem, 4.4vw); line-height: 1.15; }
+.hdr b { overflow-wrap: normal; word-break: normal; hyphens: manual; letter-spacing: .01em; font-size: min(1.05rem, 4.4vw); line-height: 1.2; }
 .hdr .fig { font-size: min(1rem, 4vw); }
 .item.att { flex-wrap: wrap; }
 .item.att .seg { flex: 1 1 100%; }
