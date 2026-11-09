@@ -1,0 +1,20 @@
+{
+  "name": "fingertip-hotel-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android app (APK) for Fingertip Hotel, built with Capacitor from ../web",
+  "scripts": {
+    "prepare-web": "node prepare-web.js",
+    "sync": "node prepare-web.js && npx cap sync android",
+    "apk": "node prepare-web.js && npx cap sync android && cd android && ./gradlew assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}
