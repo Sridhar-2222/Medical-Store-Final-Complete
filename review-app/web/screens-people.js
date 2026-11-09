@@ -13,7 +13,8 @@
     var n = api.info().counts.customers, due = api.vaultDue({ days: 7 }), offers = api.list('offers').rows.filter(function (o) { return !o.validTill || o.validTill >= A.today(); });
     var withDisc = api.list('customers').rows.filter(function (c) { return c.discountPct > 0; }).length;
     el.innerHTML = '<ul class="feats">' +
-      feat('cust-list', '☺', 'Customer list', 'Open a customer\'s vault · add a customer', String(n)) +
+      A.featRaw('cust-add', '＋', 'New customer vault') +
+      feat('cust-list', '☺', 'Customer vaults', 'Open a customer\'s vault · add a customer', String(n)) +
       feat('bulk', '📣', 'Bulk reminder', 'Discount offer or video to many customers at once') +
       feat('reminders', '⏰', 'Reminders due', 'Refills, service dates', due.length ? due.length + ' this week' : 'none') +
       feat('discounts', '%', 'Customer discount', 'Standing discount for regular customers', withDisc + ' customers') +
@@ -24,7 +25,7 @@
   } });
 
   var cs = { q: '' };
-  A.screen('cust-list', { title: 'Customer list', crumb: 'Customers', back: 'customers', render: function (el) {
+  A.screen('cust-list', { title: 'Customer vaults', crumb: 'Customers', back: 'customers', render: function (el) {
     var all = api.vaultSummary(), map = {}; api.list('customers').rows.forEach(function (c) { map[c.id] = c; });
     el.innerHTML = '<div class="row"><input id="cl-q" class="grow" placeholder="Search name or phone" value="' + esc(cs.q) + '"><a class="btn primary" href="#cust-add">＋ Add</a></div><div id="cl-l"></div>';
     function draw() {
@@ -58,7 +59,8 @@
   A.screen('vault', { title: function () { return vaultTitle(); }, crumb: 'Customer vault', back: 'cust-list', render: function (el, st) {
     if (!st || !st.id || !api.get('customers', st.id)) { A.go('cust-list'); return; }
     var v = api.vault(st.id), c = v.customer, t = A.today(), offers = api.offersFor(c.id);
-    el.innerHTML = '<div class="card"><div class="card-head"><div><h2>' + esc(c.name) + '</h2><p class="muted small">' + esc(c.phone || 'No WhatsApp number') + '</p></div><button type="button" class="btn small" id="v-edit">Edit</button></div>' +
+    el.innerHTML = '<div class="vault-banner"><span>Customer vault</span><b>' + esc(vaultTitle()) + '</b></div>' +
+      '<div class="card"><div class="card-head"><div><h2>' + esc(c.name) + '</h2><p class="muted small">' + esc(c.phone || 'No WhatsApp number') + '</p></div><button type="button" class="btn small" id="v-edit">Edit</button></div>' +
       '<div class="row">' + (c.discountPct ? '<span class="pill good">Customer discount ' + c.discountPct + '%</span>' : '') + offers.map(function (o) { return '<span class="pill ink">' + esc(o.title) + (o.validTill ? ' · till ' + A.niceDate(o.validTill) : '') + '</span>'; }).join('') + '</div>' +
       '<div class="row"><button type="button" class="btn primary grow" id="v-msg">Message</button><button type="button" class="btn grow" id="v-add">Add record</button></div><button type="button" class="btn ghost" id="v-share">Send ' + esc(c.name.split(' ')[0]) + ' their vault</button></div>' +
       A.videoCard(A.S().customerVideo, 'Video for customers', 'Shown in every customer\'s vault') +

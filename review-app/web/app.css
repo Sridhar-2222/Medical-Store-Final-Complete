@@ -268,3 +268,8 @@ body[data-sec="setup"] { --ink: #475569; --ink-soft: #e1e6ee; --sec-t: #eef1f5; 
 body[data-sec="home"] { --ink: #3b5bdb; --ink-soft: #e3e9fc; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body[data-sec] { --sec-t: color-mix(in srgb, var(--ink) 16%, var(--card)); --ink: color-mix(in srgb, var(--ink) 50%, #ffffff); --ink-soft: color-mix(in srgb, var(--ink) 22%, var(--card)); } }
 :root[data-theme="dark"] body[data-sec] { --sec-t: color-mix(in srgb, var(--ink) 16%, var(--card)); --ink: color-mix(in srgb, var(--ink) 50%, #ffffff); --ink-soft: color-mix(in srgb, var(--ink) 22%, var(--card)); }
+
+/* Vault banner: the business name the customer sees */
+.vault-banner { display: grid; gap: 2px; padding: 16px 18px; border-radius: 18px; background: var(--sec-t, var(--ink-soft)); border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent); }
+.vault-banner span { font-size: .7rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+.vault-banner b { font-size: 1.4rem; font-weight: 800; color: var(--fg); overflow-wrap: anywhere; }
