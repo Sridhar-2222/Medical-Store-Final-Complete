@@ -31,4 +31,11 @@ NOW USE:
 DATABASE SETUP (One time):
 - Go to supabase.com -> SQL Editor -> Paste content of supabase-schema.sql -> Run
 
+SEVA - LIST WORKERS WITH NO SMARTPHONE:
+- Open https://your-app.onrender.com/seva
+- Chemist fills name, phone, work, area, ticks the worker's spoken consent -> listed
+- Customers search by work/area and tap Call
+- Optional env: SEVA_HELPER_PIN (PIN needed to add/remove), SEVA_STORE=supabase (after running supabase/migrations/20261123000000_seva_workers.sql)
+- Details: docs/HANDOVER.md
+
 Need help? Reply "Deploy help"
