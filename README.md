@@ -36,6 +36,13 @@ SEVA - LIST WORKERS WITH NO SMARTPHONE:
 - Chemist fills name, phone, work, area, ticks the worker's spoken consent -> listed
 - Customers search by work/area and tap Call
 - Optional env: SEVA_HELPER_PIN (PIN needed to add/remove), SEVA_STORE=supabase (after running supabase/migrations/20261123000000_seva_workers.sql)
+
+SEVA - MISSED CALLS FROM ELDERS:
+- Open https://your-app.onrender.com/seva/calls (helper PIN)
+- Family registers an elder once (name, phone, area, consent)
+- Elder gives a missed call -> shows in Waiting with name and area -> helper taps Call back -> Done
+- No provider yet? Helpers add numbers they see on their own phone.
+- With a provider: set SEVA_MISSED_CALL_TOKEN, give them https://your-app.onrender.com/api/seva/missed-calls/hook?token=YOUR_TOKEN
 - Details: docs/HANDOVER.md
 
 Need help? Reply "Deploy help"

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="te"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seva Missed Calls</title>
+<style>
+*{font-family:system-ui;box-sizing:border-box} body{margin:0;background:#f6f8fb;padding:15px;max-width:640px;margin:auto;color:#1b1f24}
+.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px #0001;margin-bottom:15px}
+h2{margin:6px 0 4px} h3{margin:0 0 10px} .te{color:#55606d;font-size:.9em} a{color:#0d7c3e}
+label{display:block;margin:10px 0 4px;font-weight:600}
+input{width:100%;padding:11px;border:1px solid #cfd6de;border-radius:10px;font-size:16px}
+.btn{background:#0d7c3e;color:#fff;border:0;padding:13px 18px;border-radius:10px;font-weight:600;cursor:pointer;width:100%;font-size:16px;margin-top:14px}
+.small{padding:9px 12px;border-radius:8px;border:1px solid #cfd6de;background:#fff;cursor:pointer;font-size:14px}
+.err{color:#b00020;font-size:14px;margin-top:4px} .ok{color:#0d7c3e;font-weight:600}
+.row{display:flex;gap:10px} .row>*{flex:1}
+.consent{display:flex;gap:10px;align-items:flex-start;background:#fff8e6;border-radius:10px;padding:10px;margin-top:12px}
+.consent input{width:auto;margin-top:4px;transform:scale(1.3)}
+.m{border-bottom:1px solid #eee;padding:12px 0}
+.m .top{display:flex;gap:10px;align-items:center}
+.m .info{flex:1} .m .name{font-weight:700;font-size:17px} .m .meta{color:#55606d;font-size:14px}
+.m .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.m.done{opacity:.65}
+.call{background:#0d7c3e;color:#fff;text-decoration:none;padding:12px 14px;border-radius:10px;font-weight:600;white-space:nowrap}
+.tag{padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;display:inline-block}
+.wait{background:#fde8e8;color:#b00020} .tdone{background:#e3f6ea;color:#0d7c3e} .unk{background:#eef1f4;color:#55606d}
+.count{font-size:13px;color:#55606d}
+</style></head><body>
+<h2>📞 Missed calls <span class="te">· మిస్డ్ కాల్స్</span></h2>
+<p class="te" style="margin-top:0">Elders give a missed call; call them back from your phone. <a href="/seva">Workers list →</a></p>
+
+<div class="card">
+  <label for="pin">Helper PIN</label>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Needed to see numbers">
+</div>
+
+<div class="card">
+  <div class="row" style="align-items:center">
+    <h3 style="margin:0">Waiting <span id="waitCount" class="tag wait">–</span></h3>
+    <input id="qArea" placeholder="Filter by area">
+  </div>
+  <div id="list" aria-live="polite"></div>
+</div>
+
+<div class="card">
+  <h3>Add a missed call <span class="te">· మిస్డ్ కాల్ చేర్చండి</span></h3>
+  <p class="te" style="margin-top:0">Got a missed call on your own phone? Add the number so others can see it is being handled.</p>
+  <form id="addCall" novalidate class="row" style="align-items:flex-end">
+    <div><input id="callPhone" inputmode="numeric" placeholder="98480 12345"><div class="err" id="callErr"></div></div>
+    <button class="btn" style="margin-top:0;flex:0 0 auto;width:auto">Add</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Register an elder <span class="te">· పెద్దవారిని నమోదు చేయండి</span></h3>
+  <p class="te" style="margin-top:0">Done once, by a son, daughter or helper. Then their missed calls show their name and area.</p>
+  <form id="f" novalidate>
+    <label for="name">Name <span class="te">· పేరు</span></label>
+    <input id="name" name="name" placeholder="e.g. Lakshmamma">
+    <div class="err" data-for="name"></div>
+    <div class="row">
+      <div><label for="phone">Their phone <span class="te">· ఫోన్</span></label>
+        <input id="phone" name="phone" inputmode="numeric"><div class="err" data-for="phone"></div></div>
+      <div><label for="area">Area <span class="te">· ప్రాంతం</span></label>
+        <input id="area" name="area"><div class="err" data-for="area"></div></div>
+    </div>
+    <label for="needs">Usually needs (optional) <span class="te">· సాధారణంగా ఏమి కావాలి</span></label>
+    <input id="needs" name="needs" placeholder="fruits, vegetables, auto to hospital">
+    <div class="row">
+      <div><label for="registered_by">Your name <span class="te">· మీ పేరు</span></label>
+        <input id="registered_by" name="registered_by" placeholder="Son – Ravi"><div class="err" data-for="registered_by"></div></div>
+      <div><label for="family_phone">Family phone (optional)</label>
+        <input id="family_phone" name="family_phone" inputmode="numeric"><div class="err" data-for="family_phone"></div></div>
+    </div>
+    <div class="consent">
+      <input type="checkbox" id="consent">
+      <label for="consent" style="margin:0;font-weight:500">They (or their family) agree that Seva helpers can see this number and call back when they give a missed call. They can ask to be removed any time.<br>
+      <span class="te">మిస్డ్ కాల్ ఇచ్చినప్పుడు సేవ సహాయకులు ఈ నంబర్ చూసి తిరిగి కాల్ చేయడానికి వారు ఒప్పుకున్నారు.</span></label>
+    </div>
+    <div class="err" data-for="consent"></div>
+    <button class="btn" id="save">Register</button>
+    <p id="msg" aria-live="polite"></p>
+  </form>
+</div>
+
+<script>
+const API = '/api/seva';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+try { $('pin').value = sessionStorage.getItem('sevaPin') || ''; } catch {}
+let me = '';
+try { me = localStorage.getItem('sevaHelperName') || ''; } catch {}
+
+async function call(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if ($('pin').value) headers['x-helper-pin'] = $('pin').value;
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401) throw new Error('Enter the correct helper PIN above.');
+  try { sessionStorage.setItem('sevaPin', $('pin').value); } catch {}
+  const body = res.status === 204 ? null : await res.json().catch(() => null);
+  return { res, body };
+}
+
+function ago(iso) {
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h} h ${m % 60} min ago` : new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+}
+
+async function load() {
+  try {
+    const { body } = await call('/missed-calls?' + new URLSearchParams({ area: $('qArea').value.trim() }));
+    const waiting = body.filter((m) => m.status === 'waiting');
+    $('waitCount').textContent = waiting.length;
+    $('list').innerHTML = body.length ? body.map((m) => {
+      const c = m.caller;
+      const who = c ? `${esc(c.name)}` : 'Unknown caller';
+      const meta = [c ? esc(c.area) : '', esc(m.phone), c?.needs ? 'needs: ' + esc(c.needs) : ''].filter(Boolean).join(' · ');
+      const status = m.status === 'waiting'
+        ? `<span class="tag wait">Waiting</span> <span class="count">${m.rings > 1 ? `rang ${m.rings}× · ` : ''}${ago(m.first_at)}${m.attempts ? ` · ${m.attempts} try${m.attempts > 1 ? 's' : ''}, no answer` : ''}</span>`
+        : `<span class="tag tdone">Called back</span> <span class="count">by ${esc(m.handled_by || 'helper')} · ${ago(m.handled_at)}${m.note ? ' · ' + esc(m.note) : ''}</span>`;
+      return `<div class="m ${m.status === 'done' ? 'done' : ''}">
+        <div class="top">
+          <div class="info"><div class="name">${who} ${c ? '' : '<span class="tag unk">not registered</span>'}</div><div class="meta">${meta}</div><div style="margin-top:4px">${status}</div></div>
+          ${m.status === 'waiting' ? `<a class="call" href="tel:${m.phone.length === 10 ? '+91' : ''}${esc(m.phone)}">📞 Call back</a>` : ''}
+        </div>
+        ${m.status === 'waiting' ? `<div class="acts">
+          <button class="small" data-id="${esc(m.id)}" data-r="done">✅ Done – spoke to them</button>
+          <button class="small" data-id="${esc(m.id)}" data-r="no_answer">No answer</button>
+          ${c?.family_phone ? `<a class="small" style="text-decoration:none;color:inherit" href="tel:+91${esc(c.family_phone)}">Call family</a>` : ''}
+        </div>` : ''}
+      </div>`;
+    }).join('') : '<p class="te">No missed calls today. 🎉</p>';
+  } catch (err) { $('list').innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+}
+
+$('list').onclick = async (e) => {
+  const b = e.target.closest('button[data-id]'); if (!b) return;
+  let name = me;
+  if (!name) { name = prompt('Your name (so others know who called back):') || ''; me = name.trim(); try { localStorage.setItem('sevaHelperName', me); } catch {} }
+  const note = b.dataset.r === 'done' ? (prompt('What did they need? (optional)') || '') : '';
+  try {
+    const { res, body } = await call(`/missed-calls/${b.dataset.id}/result`, { method: 'POST', body: JSON.stringify({ result: b.dataset.r, handled_by: me, note }) });
+    if (!res.ok) alert(body?.error || 'Could not save.');
+  } catch (err) { alert(err.message); }
+  load();
+};
+
+$('addCall').onsubmit = async (e) => {
+  e.preventDefault(); $('callErr').textContent = '';
+  try {
+    const { res, body } = await call('/missed-calls', { method: 'POST', body: JSON.stringify({ phone: $('callPhone').value }) });
+    if (res.ok) { $('callPhone').value = ''; load(); } else $('callErr').textContent = body?.errors?.phone || body?.error || 'Could not add.';
+  } catch (err) { $('callErr').textContent = err.message; }
+};
+
+$('f').onsubmit = async (e) => {
+  e.preventDefault();
+  document.querySelectorAll('#f .err').forEach((el) => (el.textContent = ''));
+  $('msg').textContent = '';
+  const data = Object.fromEntries(new FormData($('f')));
+  data.consent = $('consent').checked;
+  try {
+    const { res, body } = await call('/callers', { method: 'POST', body: JSON.stringify(data) });
+    if (res.ok) {
+      $('msg').innerHTML = `<span class="ok">✅ ${esc(body.name)} is registered.</span>`;
+      $('f').reset(); load();
+    } else if (body?.errors) {
+      for (const [k, v] of Object.entries(body.errors)) { const el = document.querySelector(`#f .err[data-for="${k}"]`); if (el) el.textContent = v; }
+    } else throw new Error(body?.error || 'Could not save.');
+  } catch (err) { $('msg').innerHTML = `<span class="err">${esc(err.message)}</span>`; }
+};
+
+let t; $('qArea').oninput = () => { clearTimeout(t); t = setTimeout(load, 300); };
+$('pin').onchange = load;
+load();
+setInterval(() => { if (!document.hidden) load(); }, 30000);
+</script>
+</body></html>

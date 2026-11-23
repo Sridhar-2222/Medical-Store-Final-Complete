@@ -73,4 +73,4 @@ function sevaRouter({ store, helperPin = process.env.SEVA_HELPER_PIN, now = () =
   return r;
 }
 
-module.exports = { sevaRouter };
+module.exports = { sevaRouter, pinOk };
