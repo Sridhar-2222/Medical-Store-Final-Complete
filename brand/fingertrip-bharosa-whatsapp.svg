@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f8a4a"/>
+      <stop offset="1" stop-color="#0a6b3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="640" fill="url(#bg)"/>
+  <g transform="translate(320 228)">
+    <path d="M-72 112 V-28 a72 72 0 0 1 144 0 V112 Z" fill="#ffffff"/>
+    <g fill="none" stroke="#0f8a4a" stroke-width="9" stroke-linecap="round">
+      <path d="M-44 66 V-20 a44 44 0 0 1 88 0 V66"/>
+      <path d="M-22 66 V-16 a22 22 0 0 1 44 0 V66"/>
+      <path d="M0 66 V-6"/>
+    </g>
+    <circle cx="66" cy="-64" r="42" fill="#ffd54a" stroke="#0a6b3a" stroke-width="8"/>
+    <path d="M46 -64 l14 15 l27 -30" fill="none" stroke="#0a6b3a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="320" y="420" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700" fill="#ffffff">Fingertrip</text>
+  <text x="320" y="470" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#ffd54a" letter-spacing="6">BHAROSA</text>
+  <text x="320" y="522" text-anchor="middle" font-family="TeluguBold, sans-serif" font-size="38" font-weight="700" fill="#d9f2e3">భరోసా</text>
+</svg>
