@@ -70,6 +70,24 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 app.get('/health', (req, res) => res.send('Medical Bot Running ✅'));
 
+// Seva: chemist registers a worker who has no smartphone
+const { sevaRouter } = require('./seva/routes');
+const { fileStore, supabaseStore } = require('./seva/store');
+const sevaStore = process.env.SEVA_STORE === 'supabase'
+  ? supabaseStore(supabase)
+  : fileStore(process.env.SEVA_DATA_FILE || path.join(__dirname, 'data', 'seva-workers.json'));
+app.use('/api/seva', sevaRouter({ store: sevaStore }));
+app.get('/seva', (req, res) => res.sendFile(path.join(__dirname, 'seva.html')));
+
+// Seva: missed-call list for helpers
+const { callsRouter } = require('./seva/calls-routes');
+const { fileCallsStore, supabaseCallsStore } = require('./seva/calls');
+const callsStore = process.env.SEVA_STORE === 'supabase'
+  ? supabaseCallsStore(supabase)
+  : fileCallsStore(process.env.SEVA_DATA_DIR || path.join(__dirname, 'data'));
+app.use('/api/seva', callsRouter({ store: callsStore }));
+app.get('/seva/calls', (req, res) => res.sendFile(path.join(__dirname, 'seva-calls.html')));
+
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info_final');
   const sock = makeWASocket({ auth: state, printQRInTerminal: true, browser: ["Medical Store", "Chrome", "1.0"] });
