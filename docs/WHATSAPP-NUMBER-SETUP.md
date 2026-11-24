@@ -37,6 +37,7 @@ Other portfolios on the same Facebook login: "Health care notifications" (144099
 - [ ] Check the test number (+1 555 145 5973) still works, if it's still wanted. Its old token was revoked; the new system-user token also covers the test account.
 - [ ] Display name "Rx Fingertip" approval, and the yellow "WhatsApp needs more information" warning in Business settings. The website is currently a Google Doc link; a real website showing the business name is likely needed.
 - [ ] Add a payment method before sending messages the bot starts itself (templates).
+- [ ] ₹1,000 paid to Meta on 23 Nov, reportedly against the number ending 90595 (the owner's personal test recipient). Find which account it sits in (Billing hub) and, if needed, ask Meta Support to move or refund it. Deferred by the owner.
 - [ ] Add a second admin to the Rx Fingertip portfolio, and turn on two-factor authentication for it.
 - [ ] Optional: rename the app "Birds eye view" (App settings → Basic) once the bot works.
 
