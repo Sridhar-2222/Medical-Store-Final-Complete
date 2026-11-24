@@ -27,10 +27,14 @@ Other portfolios on the same Facebook login: "Health care notifications" (144099
 
 6. `POST 1587466106402736/subscribed_apps` returned `{"success": true}`. Messages to the new number now go to the app's webhook.
 
+7. First test (19:11 IST): "Hi" and "SEVA" reached the bot (`whatsapp_inbox`, phone_number_id 1306304762575933), but replies failed with `400 Authorization Error (code 100)`. The bot's token only covered the test WhatsApp account.
+8. Fix: system user **rx fingertip bot** (ID 61595608493598) was given **Full access (Everything)** on WABA 1587466106402736. Its old tokens were revoked (by accident, harmlessly), and a new **never-expiring** token was generated for app Birds eye view with only `whatsapp_business_messaging` and `whatsapp_business_management`. The owner saved it as the Supabase Edge Function secret `WHATSAPP_ACCESS_TOKEN` on project fsftbvchnifshndssowe.
+9. **Working (19:28 IST):** "SEVA" got a reply from +91 78424 49808. `wa_outbound` status went to `read`, and `whatsapp_status` recorded `sent` then `read`.
+
 ## Still to do
 
-- [ ] Check the bot's Supabase secrets (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`) work for this WhatsApp account. The token must be allowed to send from WABA 1587466106402736. This is a job for the session that owns the bot code.
-- [ ] Send **SEVA** from another phone to +91 78424 49808 and confirm the bot replies.
+- [ ] The bot only replies to numbers listed in the Supabase secret `WA_TEST_RECIPIENTS` (and only while `WA_LIVE_SEND=true`). Before real users, decide who gets replies and update that list, or change the code to allow everyone.
+- [ ] Check the test number (+1 555 145 5973) still works, if it's still wanted. Its old token was revoked; the new system-user token also covers the test account.
 - [ ] Display name "Rx Fingertip" approval, and the yellow "WhatsApp needs more information" warning in Business settings. The website is currently a Google Doc link; a real website showing the business name is likely needed.
 - [ ] Add a payment method before sending messages the bot starts itself (templates).
 - [ ] Add a second admin to the Rx Fingertip portfolio, and turn on two-factor authentication for it.
