@@ -25,9 +25,10 @@ Other portfolios on the same Facebook login: "Health care notifications" (144099
 4. `GET 1587466106402736/phone_numbers` confirmed `code_verification_status: VERIFIED` and phone number ID 1306304762575933.
 5. `POST 1306304762575933/register?messaging_product=whatsapp&pin=<owner's PIN>` returned `{"success": true}`. The number is registered for the Cloud API.
 
+6. `POST 1587466106402736/subscribed_apps` returned `{"success": true}`. Messages to the new number now go to the app's webhook.
+
 ## Still to do
 
-- [ ] `POST 1587466106402736/subscribed_apps`, so messages to the new number reach the app's webhook.
 - [ ] Check the bot's Supabase secrets (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`) work for this WhatsApp account. The token must be allowed to send from WABA 1587466106402736. This is a job for the session that owns the bot code.
 - [ ] Send **SEVA** from another phone to +91 78424 49808 and confirm the bot replies.
 - [ ] Display name "Rx Fingertip" approval, and the yellow "WhatsApp needs more information" warning in Business settings. The website is currently a Google Doc link; a real website showing the business name is likely needed.
