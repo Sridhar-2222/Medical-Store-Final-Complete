@@ -1,0 +1,18 @@
+{
+  "name": "fingertip-jobs",
+  "version": "1.0.0",
+  "description": "Jobs page for pharmacy and health workers: resume, firm card, private codes, shortlist, number sharing by consent, posters with QR",
+  "main": "server/server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^2.0.2",
+    "qrcode": "^1.5.4",
+    "web-push": "^3.6.7"
+  }
+}
